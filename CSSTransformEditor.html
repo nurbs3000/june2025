@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>CSS Trasform Editor</title>
+        <style> /* internal style. */
+            *{ /* universal selector. Selects all elements. */
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box; /* include the padding and border in an element's total width and height. */
+                font: 20px Arial;
+            }
+            #wrapper{ /* id selector. */
+                width: 100vw; /* 100% of the viewport's width. */
+                height: 100vh; /* 100% of the viewport's height. */
+                display: flex; /* flexible box layout model. */
+                flex-wrap: wrap; /* items wrap to multiple lines when they dont fit. */
+            }
+            header,footer{ /* CSS list selector. */
+                width: 100%; /* 100% of the parent's width. */
+                height: 50px;
+                background-color: darkSlateGray; /* all colors are up to you. */
+                display: flex; /* flexible box layout model. */
+                justify-content: space-evenly; /* distribute space evenly between and around items(sliders) along the main axis of a flex container. */
+            }
+            input[type="range"]{ /* select input elements with attribute type="range". */
+                width: 20vw; /* every slide will have width equal to 20% of the viewport's width. */
+            }
+            aside{ /* type selector. */
+                width: 300px;
+                height: calc(100vh - 100px); /* CSS calc() function to calculate height taking into account header and footer width 50px + 50px = 100px. */
+                background-color: slateGray;
+                padding: 5px 10px;
+            }
+            main{ /* type selector. */
+                width: calc(100vw - 300px); /* CSS calc() function, 350px is aside width. */ 
+                height: calc(100vh - 100px); /* the same as with aside's height. */
+                background-color: silver;
+                display: flex; /* flexible box layout model. */
+                justify-content: center; /* center along the main axis of a flex container (horizontaly). */
+                align-items: center; /* center alont the cross axis of a flex container (verticaly). */
+                overflow: hidden; /* clips any content that excceds the container (no scrollbars appear). */
+            }
+            article{ /* type selector. */
+                width: 30vw; /* 30% of the viewport's width. */
+                height: 30vh; /* 30% of the viewport's height. */
+                font: 20px Arial;
+                background-color: steelBlue;
+                padding: 15px;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="wrapper"> <!-- wrapps everything and occupies the whole viewport. -->
+            <header> <!-- semantic HTML element. Contains sliders. From 1 to 4 depending on transform property value. min, max, step, value attributes will by dynamicaly set by JS. -->
+                <input type="range" id="range-0" autocomplete="off">
+                <input type="range" id="range-1" autocomplete="off">
+                <input type="range" id="range-2" autocomplete="off">
+                <input type="range" id="range-3" autocomplete="off">
+            </header> 
+            <aside> <!-- semantic HTML element. Contains radio buttons and span elements, as well as text nodes to organize selection of units(px, deg, rad etc) and transform property. -->
+                translate <input type="radio" class="units translate px" name="units-translate" checked autocomplete="off"> px
+                <input type="radio" class="units translate percent" name="units-translate" autocomplete="off"> %
+                <br>
+                scale <input type="radio" class="units scale number" name="units-scale" checked autocomplete="off"> number
+                <input type="radio" class="units scale percent" name="units-scale" autocomplete="off"> %
+                <br>
+                rotate <input type="radio" class="units rotate deg" name="units-rotate" checked autocomplete="off"> deg
+                <input type="radio" class="units rotate turn" name="units-rotate" autocomplete="off"> turn
+                <input type="radio" class="units rotate rad" name="units-rotate" autocomplete="off"> rad
+                <br>
+                skew <input type="radio" class="units skew deg" name="units-skew" checked autocomplete="off"> deg
+                <input type="radio" class="units skew turn" name="units-skew" autocomplete="off"> turn
+                <input type="radio" class="units skew rad" name="units-skew" autocomplete="off"> rad
+                <br><br>
+                <input type="radio" id="rbtn-translate" name="values">   translate(<span class="translate"></span><span class="translate"></span>)
+                <br>
+                <input type="radio" id="rbtn-translate3d" name="values">
+                translate3d(<span class="translate3d"></span><span class="translate3d"></span><span class="translate3d"></span>)
+                <br>
+                <input type="radio" id="rbtn-translateX" name="values"> translateX(<span class="translateX"></span>)
+                <br>
+                <input type="radio" id="rbtn-translateY" name="values"> translateY(<span class="translateY"></span>)
+                <br>
+                <input type="radio" id="rbtn-translateZ" name="values"> translateZ(<span class="translateZ"></span>)
+                <br>
+                <input type="radio" id="rbtn-scale" name="values"> scale(<span class="scale"></span><span class="scale"></span>)
+                <br>
+                <input type="radio" id="rbtn-scale3d" name="values"> scale3d(<span class="scale3d"></span><span class="scale3d"></span><span class="scale3d"></span>)
+                <br>
+                <input type="radio" id="rbtn-scaleX" name="values"> scaleX(<span class="scaleX"></span>)
+                <br>
+                <input type="radio" id="rbtn-scaleY" name="values"> scaleY(<span class="scaleY"></span>)
+                <br>
+                <input type="radio" id="rbtn-scaleZ" name="values"> scaleZ(<span class="scaleZ"></span>)
+                <br>
+                <input type="radio" id="rbtn-rotate" name="values"> rotate(<span class="rotate"></span>)
+                <br>
+                <input type="radio" id="rbtn-rotate3d" name="values"> rotate3d(<span class="rotate3d"></span><span class="rotate3d"></span><span class="rotate3d"></span><span class="rotate3d"></span>)
+                <br>
+                <input type="radio" id="rbtn-rotateX" name="values"> rotateX(<span class="rotateX"></span>)
+                <br>
+                <input type="radio" id="rbtn-rotateY" name="values"> rotateY(<span class="rotateY"></span>)
+                <br>
+                <input type="radio" id="rbtn-rotateZ" name="values"> rotateZ(<span class="rotateZ"></span>)
+                <br>
+                <input type="radio" id="rbtn-skew" name="values"> skew(<span class="skew"></span><span class="skew"></span>)
+                <br>
+                <input type="radio" id="rbtn-skewX" name="values"> skewX(<span class="skewX"></span>)
+                <br>
+                <input type="radio" id="rbtn-skewY" name="values"> skewY(<span class="skewY"></span>)
+                <br>
+                <input type="radio" id="rbtn-perspective" name="values"> perspective(<span class="perspective"></span>)
+            </aside>
+            <main> <!-- semantic HTML element. -->
+                <article> <!-- the "main character", all transformation are applied to this element. -->
+                    <h1>🐥🐗🐀</h1> <!-- 3 emojis in order to indicate the top. -->
+                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur id diam posuere, commodo orci in, consequat urna. Nulla facilisi. <!-- some random text. -->
+                </article>
+            </main>
+            <footer></footer> <!-- semantic HTML element. JS will display inline style attribute applied to article element. -->
+        </div>
+        <script>
+//*************************** global variables **********************
+const myElem = document.querySelector("article");
+const myElemStyleTransform = {}; // this object's property value pairs will represent the property value pairs of inline style applied to the article HTML element.
+let currProperty; // currently selected CSS transform property.
+let spanNodeList; // NodeList of span elements following currProperty.
+const units = {}; // JS will set this object's property value pairs for each possible tranform property like { translate: "px", translate3d: "px", translateX: "px", translateY: "px", translateZ: "px", translateXY: "px", perspective: "px", scale: "number", scale3d: "number", ... }, depending on the selected units.
++//*************************** events ********************************
+document.addEventListener("input",addCSSTransformProperty); // one function for any input event. Maybe this function is a bit overloaded, but it is what it is. 
+//*************************** logic *********************************
+function addCSSTransformProperty(e){ // e is input event object either from input range element or from radion button.
+    // in any case we check all radio buttons for selecting units.
+    document.querySelectorAll(".units").forEach(el=>{ // document.querySelectorAll() returns a NodeList(10) [ input.units.translate.px, input.units.translate.percent, input.units.scale.number, input.units.scale.percent, input.units.rotate.deg, input.units.rotate.turn, input.units.rotate.rad, input.units.skew.deg, input.units.skew.turn, input.units.skew.rad ] representing input radio button for units selection. Then forEach() loops through each element of this NodeList.
+        if(el.checked){ // check if the radio button if checked.
+            units[el.classList[1]] = el.classList[2]; // classList is array-like DOMTokenList collection containing all class names of an element, like ["units", "translate", "px"]. Therefore we set units object properties and values like so: {"translate": "px", "translate": "percent",...}.
+            ["3d","X","Y","Z","XY"].forEach(str=>{ // construct for translate, scale, rotate, skew each possible variation and set it to the same unit type. 
+                units[el.classList[1]+str] = el.classList[2];
+            });
+        }
+        units.perspective = "px"; // for transform property perspective there will be only one units option - pixels.
+    });
+    setInputRange(); // call function to set slider's attributes min, max, and step as well as hide unnecessary sliders (for example scaleX needs only one slider, but traslate require 2 sliders).
+    if(e.target.type === 'radio' && (/rbtn-/.test(e.target.id))) { // check if event was fired by radio button selecting transform property.
+        currProperty = e.target.id.replace(/\w+\-/,""); // removes from element's id first part "rbtn-", and assign result to the currProperty variable.
+        setInputRange(); // call setInputRange again.
+        spanNodeList = document.querySelectorAll(`span.${currProperty}`); // each radio button is followed by span elemnets to display its parameters. The number of span elements is equal to the number of parameters required by respective transform property. 
+        document.querySelectorAll("input[type='range']") // NodeList representing input range elements (sliders). There are 4 of them in total.
+        .forEach((el,idx)=>{ // loop through each of them.
+            if(idx < spanNodeList.length) { // check if slider index (0,1,2,3) is less then the number of span element after that slider (this number is the number of parameters required by this transform property.)
+                el.style.display = ""; // this slide must be present.
+            }
+            else el.style.display = "none"; // the rest sliders are not needed.
+        });
+        return;
+    }
+    if(e.target.type === "range"){ // check if the event was fired by slider.
+        let str = ""; // temporary variable.
+        spanNodeList.forEach((el,idx)=>{ // loop through the list of span elements after current (selected) transform property.
+            let unit = units[currProperty] === "number" ? "" // using nested ternary operators construct suffix to be added to the value of sliders.
+            : units  [currProperty] === "percent" ? "%" : units[currProperty];
+            if(currProperty === "rotate3d" && idx < 3) unit = ""; // rotate3d is the special case (edge case), where first 3 parameters are vector components, and should have no suffix(are unitless) and the last 4th compontent have suffux.
+            el.textContent = document.querySelector(`#range-${idx}`).value+unit; // display current parameter in the respective span element.
+            if(idx !== spanNodeList.length-1) el.textContent += ","; // if it is not the last parameter put a "," as a separator before next parameter will be added to the string.
+            str += el.textContent; // add current parameter to temporary variable.
+        });
+        myElemStyleTransform[currProperty] = str; // assign string containing transform parameters to the respective object property value.
+        str = ""; // set temporary variable to empty string again. 
+        Object.keys(myElemStyleTransform).forEach(k=>{ // loop through each property of the object containing all parameters, which were set.
+            str += k+"("+myElemStyleTransform[k]+") " // add the current parameter key(it is the transform property value) and value parameters in parenthsis to the 'str' variable.
+        });
+        myElem.style.transform = str; // update inline style attribute, actually trasforming the article element. 
+        document.querySelector("footer").textContent = str; // display style attribute in the footer.
+    }
+    function setInputRange(){ // 
+        const [w,h] = [myElem.getBoundingClientRect().width,myElem.getBoundingClientRect().height].map(v=>parseInt(v)); // destructuring assignment syntax to assign to 'w' and 'h' variables width and height of the article element.
+        const rangeMinMaxStep = { // this object propertiy names are possible units for CSS transform, and values are objects containing min, max, step attribute values to sliders to set. 
+            px: {min: -w, max: w, step: 1},  
+            percent: {min: -100, max: 100, step: 1},
+            deg: {min: -180, max: 180, step: 1},
+            turn: {min: -1, max: 1, step: 0.05},
+            rad: {min: -3.14, max: 3.14, step: 0.01},
+            number: {min: 0.1, max: 2, step: 0.05},
+            percent: {min: -100, max: 100, step: 1},
+        }
+        document.querySelectorAll("input[type='range']").forEach((el,idx)=>{ // loop through each slider (there are 4).
+            if(currProperty === "rotate3d" && idx < 3){ // edge case, for the first 3 sliders(its vector components).
+                el.setAttribute("min",-1);
+                el.setAttribute("max",1);
+                el.setAttribute("step",0.05);
+                return;
+            }
+            if(currProperty === "perspective"){ // another special (edge) case. 
+                el.min = 0;
+                el.max = 2000;
+                el.step = 10;
+                return;
+            }
+            ["min","max","step"].forEach(v=>{ // 'v' iterates through array of strings.
+                el.setAttribute(v, rangeMinMaxStep[units[currProperty]][v]); // set 'v' attribute to the respective.
+            });
+            el.setAttribute("value",0); // set value attribute to 0.
+        });
+    }
+}
+//*************************** start here ****************************
+document.querySelector("#rbtn-translate").checked = true; // set topmost translate value as default.
+currProperty = "translate"; // set current property respectively to the topmost value.
+addCSSTransformProperty({target:{type:"radio", id:"rbtn-translate"}}); // emulate event as if the radio button translate() was selected.
+//*******************************************************************
+        </script>
+    </body>
+</html>
