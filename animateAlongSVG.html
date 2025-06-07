@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Animate Along SVG Path</title>
+        <style> /* internal style. */
+            *{ /* universal selector. Selects all elements. */
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box; /* include the padding and border in an element's total width and height. */
+            }
+            #container{
+                width: 100vw; /* 100% of the viewport's width. */
+                height: 100vh; /* 100% of the viewport's height. */
+                position: relative; /* required to position absolute it's 2 childred svg and circle. */
+                background-color: teal; /* all color choices up to you. */
+            }
+            svg{
+                width: 100%; /* 100% of its parent's width. */
+                height: 100%; /* 100% of its parent's heigth. */
+                position: absolute; /* no space is created for the element in the page layout. SVG and circle must not interfere. */
+            }
+            #circle{
+                width: 33px;
+                height: 33px;
+                border-radius: 50%; /* circular shape. */
+                transform: translate(-50%,-50%); /* center element horizontally and vertically. */
+                background-color: maroon;
+                position: absolute; /* must not inrefere with SVG. */
+            }
+        </style>
+    </head>
+    <body>
+        <div id="container"> <!-- contains SVG and div elements. -->
+            <svg>
+               <path d="" stroke="navy" stroke-width="3" fill="none"> <!-- d attribute will be set by JS. -->
+            </svg>
+            <div id="circle"></div> <!-- this element will be animated by JS along the SVG path. -->
+        </div>
+        <script>
+//*************************** global variables **********************
+const containerElem = document.querySelector("#container");
+const pathElem = document.querySelector("svg>path");
+const circleElem = document.querySelector("#circle");
+let lastTimestamp = 0; // will hold last(previous) frame timestamp.
+let resetTimestamp; // boolean flag.
+let animateId; // will hold id returned by requestAnimationFrame() method.
+let pointAtLength = 0; // initial div element(cirle) position on the path.
+let velocity = .1; // initial velocity (pixels/millicecond)
+//*************************** events ********************************
+containerElem.addEventListener("click",addPoint);
+containerElem.addEventListener("mouseenter",cancelAnimate);
+containerElem.addEventListener("mouseleave",startAnimate);
+containerElem.addEventListener("wheel",changeVelocity);
+//*************************** logic *********************************
+function addPoint(e){ // called by 'click' event.
+    let d = pathElem.getAttribute("d"); // d attribute of path element.
+    if(!d){ // if d is empty string "".
+        pathElem.setAttribute("d", `M ${e.clientX} ${e.clientY} `); // Add first moint as move to M command.
+        return; 
+    }
+    d += `L ${e.clientX} ${e.clientY} `; // continues to add line to commands to d attribute.
+    pathElem.setAttribute("d", d); // set d attribute.
+}
+function startAnimate(e){ // called by 'mouseenter' event.
+    const d = pathElem.getAttribute("d"); // d attribute of path element.
+    if(/L/.test(d)){ // If d attribute contains 'L' letter, meaning SVG path have at least one segment, and animation is possible.
+        resetTimestamp = true; // set 
+        animateId = requestAnimationFrame(animate); // start animate recursive loop.
+    }
+}
+function cancelAnimate(e){ // called by 'mouseleave' event.
+    cancelAnimationFrame(animateId);
+}
+function changeVelocity(e){ // calle by 'wheel' event.
+    const sign = Math.sign(velocity); // 1 or -1 depenting on velosity is positive or negative.
+    velocity = Math.abs(velocity); // absolute value of velosity.
+    velocity -= e.deltaY/2000; // increase or decrease velocity.
+    velocity = Math.min(Math.max(velocity,0.01),.5); // clamp velocity absolute value in range 0.01 - 0.5.
+    velocity *= sign; // restore velosity sign (+ or -).
+}
+function animate(timestamp){ // 
+    if(resetTimestamp){ // if flag variable is true.
+        lastTimestamp = timestamp; // assingn timestamp to previous timestamp.
+        resetTimestamp = false; // set boolean flag to false.
+    }
+    const frameTime = timestamp-lastTimestamp; // frame time in milliseconds.
+    lastTimestamp = timestamp; 
+    const pathLength = pathElem.getTotalLength(); // the total length of an SVG path.
+    let positionAtLength = pointAtLength+frameTime*velocity; // updated position on SVG path.
+    if(positionAtLength < 0) { // bounce from start point.
+        velocity = -velocity; 
+        pointAtLength = 0;
+    }
+    if(positionAtLength > pathLength){ // bounce from last point.
+        velocity = -velocity;
+        pointAtLength = pathLength;
+    }
+    pointAtLength += frameTime*velocity; // update position on the path.
+    const pointOnPath = pathElem.getPointAtLength(pointAtLength); // returns the point at a given distance along the path.
+    circleElem.style.left = pointOnPath.x+"px"; // update circle horizontal position.
+    circleElem.style.top = pointOnPath.y+"px";
+    animateId = requestAnimationFrame(animate); // Recursive call loops animation. Returns request ID, needed to cancel the animate.
+}
+//*******************************************************************
+        </script>
+    </body>
+</html>
