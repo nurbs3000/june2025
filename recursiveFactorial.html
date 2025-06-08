@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Recursive Factorial</title>
+        <style> /* inline style. */
+            *{ /* universal selector. Selects all elements. */
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box; /* include border and padding in an element's total width and height. */
+            }
+            #container{ /* id selector. */
+                width: 100vw; /* full viewport width. */
+                height: 100vh; /* full viewport height. */
+                display: flex; /* flexible layout box model. */
+                white-space: pre-wrap; /* preserve whitespace and line breaks. */
+                overflow: hidden; /* hide scrollbars. */
+                padding: 30px; /* some breating room. */
+                background-color: #111; /* colors are up to you. */
+                color: darkGreen;
+                font: 25px Arial; /* for everyone to see. */
+            }
+        </style>
+    </head>
+    <body>
+        <div id="container"></div> <!-- stackToDisplay multiline text will be displayed inside. -->
+        <script>
+//*************************** global variables **********************
+let stackToDisplay = ""; // stores modified stack trace in displayable format(multiline with indentation). This variable will be displayed in container.
+//*************************** logic *********************************
+async function recursiveFactorial(n, depth = 0){ // main recursive function. Depth argument is used only to construct indentation.
+    const stack = new Error().stack; // capture the stack.
+    let txt = stack.split("\n").slice(1).filter(Boolean); // split into lines, remove first line(this line is from error message), and remove empty last line.
+    const indent = "    ".repeat(depth); // create indentation based on call depth.
+    const fnName = txt[txt.length-1].match(/[^\/]+(?=\.html)/); // extract the file name from the last txt array element. Regular expression used.
+    stackToDisplay +=`${indent}${fnName}(${n})\n`; // add next line to display.
+    updateDisplay(); 
+
+    if(n <= 1){ // base case. Recursion stops and stack unwinding begins.
+        stackToDisplay += `${indent}return 1\n`; // add return value 1 to multiline global variable stackToDisplay.
+        updateDisplay(); // call fn to updete textContent of container.
+        await waitForClick(); // wait for mouse click before continuing.
+        return 1; // actually return 1.
+    }
+    await waitForClick(); // wait for mouse click.
+    const result =  n*await recursiveFactorial(n-1,depth+1); // recurseve call. Stack builds up.
+    stackToDisplay += `${indent}return ${result}\n`; // this line reached only when base case is reached and stack unwinding begins(no more recursive calls)
+    updateDisplay(); // display stackToDisplay.
+    await waitForClick(); // wait for user to click.
+    return result; // return value.
+}
+function updateDisplay(){ // updates visual feedback.
+    document.querySelector("#container").textContent = stackToDisplay; // textContent is faster then innerText.
+}
+function waitForClick(){ // returns a promise, which resolves on click. You can say it creates pause points.
+    return new Promise(resolve=>{
+        document.querySelector("#container").onclick = function(){
+            this.onclick = null; // Cleanup. Frees memory.
+            resolve();
+        }
+    })
+}
+//*************************** start here ****************************
+recursiveFactorial(12); // launch the show.
+//*******************************************************************
+        </script>
+    </body>
+</html>
