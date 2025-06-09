@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Drag and Drop, Resize Canvas</title>
+        <style> /* internal style. */
+            *{ /* universal selector. Selects all elements. */
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box; /* include the padding and border in an element's total width and height. */
+            }
+            #wrapper{ /* id selector. */
+                width: 100vw; /* 100% of the viewport's width. */
+                height: 100vh; /* 100% of the viewport's height. */
+                background-color: tan; /* all colors are up to you. */
+                position: relative; /* for absolute positioning of its child - canvas. */
+                overflow: hidden; /* clip overlow content and hide scrollbars. */
+            }
+            #myCanvas{ /* id selector. */
+                background-color: dimGray;
+                position: absolute; /* required for style attribute to work(it is for positioning). */
+            }
+        </style>
+    </head>
+    <body>
+        <div id="wrapper"> <!-- occupies whole viewport and contains canvas. -->
+            <canvas id="myCanvas"></canvas> <!-- self evident. -->
+        </div>
+        <script> /* embedded JavaScript. */
+//*************************** global variables **********************
+const wrapperElem = document.querySelector("#wrapper");
+const canvasElem = document.querySelector("#myCanvas");
+const ctx = canvasElem.getContext('2d'); // methods of this object are used to draw on canvas.
+let initialX, initialY; // mouse coordinate when drag or resize initialized.
+let isDragOrResize = false; // boolean flag, set to true when drag or resize starts and false when ends.
+let canvasClone; // stores the clone of canvas. To have access to initial position and dimensions.
+const particles = []; // array of objects representing moving particles.
+
+//*************************** events ********************************
+// all 3 mouse event call the same function passing mouse event object as argument.
+document.addEventListener("mousedown",handleCanvas);
+document.addEventListener("mouseup",handleCanvas);
+document.addEventListener("mousemove",handleCanvas);
+
+//*************************** logic *********************************
+function handleCanvas(e){
+    const cursor = canvasClone?.style.cursor; // optional chaining operator ?. prevent error from being thrown in case when canvasClone is undefined or null.
+    const [mX,mY] = localMouseCoor(e,wrapperElem); // destructuring assignment syntax. Current mouse coordinate within wrapper.
+    const [dX,dY] = [mX-initialX,mY-initialY]; // components of vector from the mouse position where drag or resize started to the curren position.
+    switch(e.type){ // type of the event.
+        case "mousemove": // 'mousemove' event. Must reposition or resize canvas if respective operation is active.
+            if(e.target === canvasElem) setCursorStyle(e); // if cursor is within canvas set respective cursor style.
+            if(!isDragOrResize) return; // if flag is false(drag or resize operation is not active) return.
+            switch(cursor){ // different solutions depending on cursor style.
+                case "move": // move(drag) canvas.
+                    canvasElem.style.left = parseInt(canvasClone.style.left)+dX+"px";
+                    canvasElem.style.top = parseInt(canvasClone.style.top)+dY+"px";
+                    break;
+                // Handle all(there are 8) resize cases.
+                case "n-resize": nResize(); break;
+                case "s-resize": sResize(); break;
+                case "w-resize": wResize(); break;
+                case "e-resize": eResize(); break;
+                case "ne-resize": nResize(); eResize(); break; // diagonal movement is split in two cardinal movements. 
+                case "se-resize": sResize(); eResize(); break;
+                case "sw-resize": sResize(); wResize(); break;
+                case "nw-resize": nResize(); wResize(); break;
+                }
+            break;
+        case "mousedown": // 'mousedown' event.
+            if(e.target !== canvasElem) return; // if 'mousedown' even was fired not by canvasElement(mouse is presed on wrapper) return.
+            [initialX,initialY] = localMouseCoor(e,wrapperElem); // destructuring assignment syntax. Store mouse coordinates at the start of drag or resize operation. They will be needed to calculate mouse movement vector within 'mousemove' event.
+            canvasClone = e.target.cloneNode(); // create clone of canvas. Reruired to store initial canvas dimensions.
+            isDragOrResize = true; // set flag to true, meaning drag or resize operation is active.
+            break;
+        case "mouseup": // end drag or resize operation.
+            isDragOrResize = false; // set flag to false.
+            break;
+    }
+    // 4 functions which resize the canvas element from 4 possible edges taking into account mouse move vector[dX,dY] and initial canvas position extracted from canvasClone. 
+    function nResize(){
+        canvasElem.style.top = parseInt(canvasClone.style.top)+dY+"px";
+        canvasElem.height = parseInt(canvasClone.height)-dY;
+    }
+    function sResize(){
+        canvasElem.height = parseInt(canvasClone.height)+dY;
+    }
+    function wResize(){
+        canvasElem.style.left = parseInt(canvasClone.style.left)+dX+"px";
+        canvasElem.width = parseInt(canvasClone.width)-dX;
+    }
+    function eResize(){
+        canvasElem.width = parseInt(canvasClone.width)+dX;
+    }
+}
+function setCursorStyle(e){ //  Sets the cursor style based on mouse position relative to canvas edges.
+    const [x,y] = localMouseCoor(e,e.target); // mouse coordinates relative to the canvas.
+    const [w,h] = [e.target.width, e.target.height]; // desctucturing assignment syntax. Get canvas dimensions.
+    const DELTA = 9; // how close (in pixels) to edge or corner mouse curson need to be for cursor style to trigger.
+    if(x < DELTA){ // check left edge.
+        if(y < DELTA){ e.target.style.cursor = 'nw-resize'; return;} // top-left corner.
+        if(y > h-DELTA){ e.target.style.cursor = 'sw-resize'; return;} // bottom-left corner.
+        e.target.style.cursor = 'w-resize'; return; // left edge.
+    }
+    if(x > w-DELTA){ // check right edge.
+        if(y < DELTA){ e.target.style.cursor = 'ne-resize'; return;} // top-right corner.
+        if(y > h-DELTA){ e.target.style.cursor = 'se-resize'; return;} // bottom-right corner.
+        e.target.style.cursor = 'e-resize'; return; // right edge.
+    }
+    if(y < DELTA){ // check for top edge(without corners, they are already checked).
+        e.target.style.cursor = 'n-resize'; return;
+    }
+    if(y > h-DELTA){ // check for bottom edge.
+        e.target.style.cursor = 's-resize'; return;
+    }
+    e.target.style.cursor = 'move'; // if not near any edge, the it is move(drag).
+}
+function localMouseCoor(e,elem){ // calculate mouse cursor coordinates relative to a specific element.
+    const rect = elem.getBoundingClientRect(); // return object containing information about element position and dimensions.
+    return [e.clientX-rect.left, e.clientY-rect.top]; // return array containing horizontal and vertical relative coordinates of the mouse.
+}
+function setCanvasPosAndSize(left,top,width,height){ // set canvas position and size. 
+    canvasElem.width = width;
+    canvasElem.height = height;
+    canvasElem.style.left = left+"px";
+    canvasElem.style.top = top+"px";
+}
+function initParticles(qt){ // fills up the particles array with objects representing particles. Accept number of particles to create.
+    particles.splice(0,particles.length); // the same as particles.length = 0
+    while(qt){ // while loop, until qt === 0.
+        particles.push(new Particle()); // push in particles array instance of the Particle class.
+        --qt; // serves as iterations counter.
+    }
+}
+class Particle{ // class is the blueprint or template for creating objects.
+    constructor(){ // special method of class. When new Particle() is called it runs, creating a particle object.
+        this.radius = 5+Math.random()*15 // random radius in range 5 to 20.
+        this.x = this.radius+Math.random()*(canvasElem.width-this.radius*2); // random horizontal position, taking into account particle radius.
+        this.y = this.radius+Math.random()*(canvasElem.height-this.radius*2);
+        this.velX = Math.random()*2-1; // random velocity in range -1 to 1.
+        this.velY = Math.random()*2-1;
+        this.color = `hsl(${Math.floor(Math.random()*360)},100%,50%`; // random HSL color.
+    }
+}
+function update(p){ // update particle position within canvas and handles collision with edges (dont let particle fly in open space, whin it reach the edge it bounce of).
+    p.x += p.velX; // update particle position by adding particle velocity. velX, velY are horizontal and vertical particle's speed in pixel per frame units.
+    p.y += p.velY;
+    const w = canvasElem.width, h = canvasElem.height; // vanvas width and height.
+    if(p.x <= p.radius){ // check for left edge collision.
+        p.velX = -p.velX; // reverse horizontal velocity(particle bounce of).
+        p.x = p.radius; // prevent sticking to edge.
+    }
+    if(p.x >= w-p.radius){ // check for right edge collision.
+        p.velX = -p.velX;
+        p.x = w-p.radius;
+    }
+    if(p.y <= p.radius){ // check for top edge collision.
+        p.velY = -p.velY;
+        p.y = p.radius;
+    }
+    if(p.y >= h-p.radius){ // check for bottom edge collision.
+        p.velY = -p.velY;
+        p.y = h-p.radius;
+    }
+}
+function render(p){ // draw a circle(particle) on canvas. Accept object representing particle, which contains all needed values: x, y, radius, and color.
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.radius, 0, Math.PI*2);
+    ctx.fill();
+}
+function animate(){ // animation loop.
+    ctx.clearRect(0,0,canvasElem.width,canvasElem.height); // clear entire canvas.
+    particles.forEach(part=>{
+        update(part); // update particle position.
+        render(part); // draw particle on canvas.
+    });
+    requestAnimationFrame(animate); // request next animation frame.
+}
+
+//*************************** start here ****************************
+onload = ()=>{ // even is fired when page is loaded.
+    setCanvasPosAndSize(parseInt(wrapperElem.offsetWidth/4), parseInt(wrapperElem.offsetHeight/4), parseInt(wrapperElem.offsetWidth/2), parseInt(wrapperElem.offsetHeight/2)); // Position canvas in center or wrapper, canvas width and height is half of wrapper widht and height respectively.
+    initParticles(100); // generate 100 particles.
+    animate(); // start animation loop.
+}
+//*******************************************************************
+        </script>
+    </body>
+</html>
