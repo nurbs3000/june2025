@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Flipping Emoji Slide Show</title>
+        <style> /* internal style. */
+            *{ /* universal selector. Selects all elements. */
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box; /* include padding and border in element's total width and height. */
+            }
+            #container{ /* id selector. */
+                width: 100vw; /* 100% of the viewport's width. */
+                height: 100vh; /* 100% of the viewport's height. */
+                background-color: #444; /* you choise of color. */
+                position: relative; /* required for absolute positioninf of tiles. */
+                overflow: hidden; /* hide anything that goes outside container. */
+            }
+            .tile{ /* class selector. All elements created by JS will have such class name. */
+                position: absolute; /* positioned relative to the container. Excluded from normal flow. left and top CSS properties work. */
+                backface-visibility: hidden; /* the back side of element is invisible. */
+                will-change: transform; /* optimize for transform animations.*/
+                background-color: #555; /* your choise of color. */
+                display: flex; /* flexible layout box model. */
+                justify-content: center; /* center on flex main axis (horizontal). */
+                align-items: center; /* cener on flex cross axis (vertical). */
+            }
+        </style>
+    </head>
+    <body>
+        <div id="container"></div> <!-- contain all div elements created by JS. -->
+        <script> // embedded JavaScript.
+//*************************** global variables **********************
+containerElem = document.querySelector("#container"); // reference to the container element.
+const cycleDuration = 6500; // duration of animation cycle in milliseconds.
+//*************************** logic *********************************
+function randomEmoji(){ // returns unicode code point for a random emoji.
+    const emojiRanges = [ // array of arrays containing emoji ranges.
+        [0x1f600,0x1f64f], // smileys & emotion.
+        [0x1f680,0x1f6c0], // transport and map.
+        [0x1f300,0x1f30f], // weather.
+        [0x1f337,0x1f34a], // plans.
+        [0x1f351,0x1f37b], // food.
+        [0x1f417,0x1f429]  // animals.
+    ];
+    const range = emojiRanges[Math.floor(Math.random()*emojiRanges.length)]; // selects a random range from available categories.
+    return Math.floor(Math.random()*(range[1]-range[0]+1))+range[0]; // return a random code point within a randomly selected range.
+}
+function createTiles(){ // create a grid of square tiles containing random emojis.
+    const [W,H] = [containerElem.offsetWidth,containerElem.offsetHeight]; // desctucturing assignment syntax. Container dimensions.
+    const sizes = [30,50,70,90,120,160]; // list of tile sizes to randomly pick from.
+    const size = sizes[Math.floor(Math.random()*sizes.length)]; // pick random tile size.
+    const [colQt,rowQt] = [Math.floor(W/size),Math.floor(H/size)]; // destructuring assignment syntax. Calculate how many rows and columns will fit inside the container.
+    const paddingLeft = Math.floor((W-colQt*size)/2); // "padding" to center tile grid horizontally.
+    const paddingTop = Math.floor((H-rowQt*size)/2); // "padding" to center tile grid vertically.
+    containerElem.innerHTML = ""; // clear previously created tile elements.
+    for(let r = 0; r < rowQt; r++) // iterate rows.
+        for(let c = 0; c < colQt; c++){ // iterate columns.
+            const elem = document.createElement("div"); // create div element.
+            elem.className = "tile"; // set class name.
+            elem.style.fontSize = size*0.81+"px"; // font size, to fit emoji nicely.
+            elem.textContent = String.fromCodePoint(randomEmoji()); // set random emoji as content.
+            elem.style.width = size+"px"; // set width and height.
+            elem.style.height = size+"px";
+            elem.style.left = paddingLeft+c*size+"px"; // position tile horizontaly within a container.
+            elem.style.top = paddingTop+r*size+"px"; // the same vertically.
+            elem.style.transform = "rotateX(180deg)"; // initially rotate the tile, so it appears flipped and invisible.
+            containerElem.appendChild(elem); // put tile inside the container.
+        }
+}
+function animateTiles(){ // animate all tiles with a flipping effect.
+    const tileElems = document.querySelectorAll(".tile"); // NodeList with all tile elements.
+    tileElems.forEach(elem=>{ // loops through NodeList.
+        // Now goes part implementig Wep Animation API!
+        const keyframes = [ // define keyframes for animation.
+            {transform: "rotateX(180deg)", offset: 0}, // starts flipped.
+            {transform: "rotateX(0)", offset: .2}, // flips to face forward by 20% of animation.
+            {transform: "rotateX(0)", offset: .8}, // stays forward until 80% of animation.
+            {transform: "rotateX(180deg)", offset: 1}, // ends flipped at 100%.
+        ];
+        const options = {  // animation options.
+            duration: cycleDuration, // animation cycle duration in ms.
+            delay: Math.floor(Math.random()*cycleDuration/2), // random start delay.
+            iterations: 1, // play once.
+            easing: "linear", // consistent speed.
+            fill: "forwards", // keep final state after animation.
+        };
+        const animation = elem.animate(keyframes,options); // start the animation.
+    });
+}
+//*************************** initialization ************************
+createTiles(); // launch 1st cycle.
+animateTiles();
+setInterval(()=>{ // every 1.5 cycle duration, create new tiles and animate them.
+    createTiles();
+    animateTiles();
+}, cycleDuration*1.5);
+//*******************************************************************
+        </script>
+    </body>
+</html>
