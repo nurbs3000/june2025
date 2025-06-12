@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Triangular Color Selector</title>
+        <style> /* interna style. */
+            *{ /* universal selector. Selects all elements. */
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box; /* include padding and border in elemenet's total widht and height. */
+            }
+            #wrapper{ /* id selector. */
+                width: 100vw; /* 100% of the viewport's width. */
+                height: 100vh; /* 100% of the viewport's wigth. */
+                background-color: #111; /* or whatever color you want. */
+                display: flex; /* flexible box layout model. */
+                justify-content: center; /* center on main axis (horizontal by default). */
+                align-items: center; /* center on cross axis (vertical by default). */
+                overflow: hidden; /* clip overlown content. No crollbars. */
+            }
+            #color-selector{ /*id selector. */
+                display: flex; /* flexible box layout model. */
+                flex-direction: column; /* set main axis vertically. */
+                background-color: silver; /* your choise. */
+                gap: 2px; /* a little gap between elements. */
+            }
+            #display-color{ /* id selector. */
+                display: flex; /* and next 2 lines center textContent put in by JS. */
+                justify-content: center;
+                align-items: center;
+                font-family: Arial; 
+                color: white; /* readable. */
+            }
+        </style>
+    </head>
+    <body>
+        <div id="wrapper"> <!-- top-level container. -->
+            <div id="color-selector"> <!-- color selector container. -->
+                <canvas id="canvas-picker"></canvas> <!-- canvas for color triangle/picker. -->
+                <canvas id="canvas-hue"></canvas> <!-- canvas to desplay and pick hue. -->
+                <div id="display-color"></div> <!-- to display selected color. -->
+            </div>
+        </div>
+        <script> // embedden JavaScript.
+//*************************** global variables **********************
+const wrapperElem = document.querySelector("#wrapper"); // reference to wrapper element.
+const selectorElem = document.querySelector("#color-selector");
+const canvPickerElem = document.querySelector("#canvas-picker");
+const ctxPicker = canvPickerElem.getContext("2d"); // object with methods for drawing (2d context).
+const canvHueElem = document.querySelector("#canvas-hue");
+const ctxHue = canvHueElem.getContext("2d");
+const displayElem = document.querySelector("#display-color");
+const π = Math.PI; // alt code 227. No sense, just because π looks cool.
+let hue = 0; // current hur value(0-360).
+let pW, pH; // width and hight of canvas-picker.
+//*************************** events ********************************
+canvPickerElem.addEventListener("mousemove",e=>{ // mouse move event for canvas-picker. Set cursor style to crosshair, when mouse is inside triangle.
+    if(isInRectangle(e)) e.target.style.cursor = "crosshair";
+    else e.target.style.cursor = "auto"
+});
+canvPickerElem.addEventListener("click",e=>{ // click event for canvas-picker. 
+    pickColor(e);
+});
+canvHueElem.addEventListener("click",e=>{ // click event of canvas-hue.
+    pickHue(e);
+});
+document.addEventListener("wheel",e=>{ // mouse whell event.
+    let w,h; // block scope variables.
+    const rect = selectorElem.getBoundingClientRect(); // return object containing information about element position and dimensions.
+    [w,h] = e.deltaY < 0 ? [pW*1.05,pH*1.05] : [pW/1.05,pH/1.05]; // destructuring assignment syntax. Grow or shrink by 5% depening of wheel direction.
+    if(rect.width >= wrapperElem.offsetWidth || rect.height >= wrapperElem.offsetHeight) { // if selector is as large as the wrapper, forse zoom out.
+        initColorSelector(pW/1.05,pH/1.05);
+        return;
+    }
+    if(w > 50) initColorSelector(w,h); // don't allow zooming smaller than 50px.
+});
+//*************************** logic *********************************
+function initColorSelector(w,h){ // initialize the color selector.
+    canvPickerElem.width = w; // set canvas-picker width.
+    canvPickerElem.height = w*Math.sin(π/3); // set canvas-picker height based on equilateral triangle(bottom triangle edge is equal to w.
+    [pW,pH] = [canvPickerElem.width,canvPickerElem.height]; // destructuring assingnment syntax(concise code). Store canvas-picker dimensions.
+    canvHueElem.width = w; // set dimensions for canvas-hue.
+    canvHueElem.height = w/9;
+    displayElem.style = `width:${w}px;height:${w/9}px;`; // set dimensions for display-color div.
+    //
+    const gradient = ctxHue.createLinearGradient(0,0,w,0); // create hue gradient.
+    gradient.addColorStop(0,"#ff0000"); // red.
+    gradient.addColorStop(0.17,"#ffff00");  // yellow.
+    gradient.addColorStop(0.34,"#00ff00");  // green.
+    gradient.addColorStop(0.51,"#0000ff");  // cyan.
+    gradient.addColorStop(0.68,"#ff00ff");  // blue.
+    gradient.addColorStop(0.85,"#ff00ff");  // magenta.
+    gradient.addColorStop(1, "#ff0000");    // red.
+    ctxHue.fillStyle = gradient;
+    ctxHue.fillRect(0,0,canvHueElem.width,canvHueElem.height);
+    renderTriangle(); // call function to render triangle.
+    displayColor("rgb(255,0,0)"); //display initial color(red).
+}
+function isInRectangle(e){ // check if mouse is inside the triangle.
+    const [x3,y3] = localCoor(e,e.target); // get local coordinates of the curren mouse position.
+    if(crossProduct(0,pH,pW/2,0) < 0) return false; // point (x3,y3) on the left side of left triangle edge.
+    if(crossProduct(pW/2,0,pW,pH) < 0) return false; // point (x3,y3) on the right side of right triangle edge.
+    return true;
+    function crossProduct(x1,y1,x2,y2){ // helper function to calculate the cross product of 2 vectors (x1,y1)-(x1,y2) and (x1,y1)-(x3,x3).
+        return (x2-x1)*(y3-y1)-(y2-y1)*(x3-x1);
+    }
+    // Math topic: Determine on which side of a line defined by two points a third point lies.(goggle, to get math details).
+}
+function pickColor(e){ // pick color from triangle at mouse click position.
+    if(!isInRectangle(e)) return; // return if mouse outside of triangle.
+    const [x,y] = localCoor(e,e.target); // get local mouse coordinates.
+    const pixel = ctxPicker.getImageData(x,y,1,1).data; // get pixel data.
+    const [r,g,b] = pixel; // extract RGB components.
+    displayColor(`rgb(${r},${g},${b})`); // display picked color.
+}
+function pickHue(e){ // pick hue from canvas-hue.
+    const [x,y] = localCoor(e,e.target); // get local mouse coordinates.
+    hue = (x/e.target.width)*360; // calculate hue based on mouse x position within canvas-hue.
+    renderTriangle(); // re-render triangle with new hue.
+}
+function localCoor(e,elem){ // convert global(viewport) mouse coordinates to local(relative to the parameter 'elem' HTML element). 
+    const rect = elem.getBoundingClientRect();
+    return [e.clientX-rect.left, e.clientY-rect.top];
+}
+function displayColor(color){ // dispaly parameter 'color' in the display-color div element.
+    displayElem.style.backgroundColor = color; // set background color.
+    displayElem.style.fontSize = `${parseInt(pW/15)}px`; // responsive fond size.
+    displayElem.textContent = color; // color code.
+}
+function renderTriangle(){ // draw the color selection rectangle.
+    ctxPicker.clearRect(0,0,pW,pH); // eraze everything on canvas.
+    ctxPicker.beginPath(); // starts a new path.
+    ctxPicker.moveTo(pW/2,0); // starts path from top vertex.
+    ctxPicker.lineTo(0,pH); // to bottom left vertex.
+    ctxPicker.lineTo(pW,pH); // to bottom right vertex.
+    ctxPicker.closePath(); // from the current point to the start point.
+    ctxPicker.clip(); // clip the triangle chaper.
+    const whiteToHue = ctxPicker.createLinearGradient(0,0,0,pH); // create a liner gradient(top to bottop)...
+    whiteToHue.addColorStop(0,"white"); // from white.
+    whiteToHue.addColorStop(1,`hsl(${hue},100%,50%)`); // to color defined by hue.
+    ctxPicker.fillStyle = whiteToHue;
+    ctxPicker.fillRect(0,0,pW,pH);
+    const blackOverlay = ctxPicker.createLinearGradient(0,0,pW,0); // create overlay gradient(left to right)...
+    blackOverlay.addColorStop(0,"rgba(0,0,0,1)"); // from black.
+    blackOverlay.addColorStop(1,"rgba(0,0,0,0)"); // to transparent.
+    ctxPicker.fillStyle = blackOverlay;
+    ctxPicker.globalCompositeOperation = "multiply";
+    ctxPicker.fillRect(0,0,pW,pH);
+    ctxPicker.globalCompositeOperation = "source-over";
+}
+//*************************** initialization ************************
+onload = ()=>{ // event is fired when page is loaded.
+    initColorSelector(wrapperElem.offsetWidth/2,wrapperElem.offsetHeight/2); // pass half of viewport's size as initial selectro size.
+}
+//*******************************************************************
+        </script>
+    </body>
+</html>
