@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Simple Smoke Effect</title>
+        <style> /* internal style. */
+            *{ /* universal selector. Selects all elements. */
+                margin: 0; /* remove defaul margin. */
+                padding: 0; /* remove defaul padding. */
+                box-sizing: border-box; /* include padding and border in element's total width and height. */
+            }
+            #container{ /* id selector. */
+                width: 100vw; /* 100% of the viewport's width. */
+                height: 100vh; /* 100% of the viewport's height. */
+                position: relative; /* positioning for aboslute canvas. */
+                background: black; /* your choise of color. */
+            }
+            canvas{ /* type selector. */
+                position: absolute;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="container"> <!-- contains canvas. -->
+            <canvas></canvas> <!-- will be set by script. -->
+        </div>
+        <script> // embedded JavaScript.
+//*************************** global variables **********************
+const containerElem = document.querySelector("#container"); // reference to container element.
+const canvElem = document.querySelector("canvas"); // reference to canvas.
+const ctx = canvElem.getContext("2d"); // 2d rendiring context.
+const particles = []; // will store objbects representing particles.
+let mouseOnCanv = false; // boolean flag variable, true when mouse is over the canvas.
+let mX, mY; // store mouse coordinates.
+let lastTime; // stores timestamp of the last animation frame. 
+//*************************** events ********************************
+canvElem.addEventListener("mouseenter",()=>{mouseOnCanv = true;}); // set flag to true, when mouse enter the canvas.
+canvElem.addEventListener("mouseleave",()=>{mouseOnCanv = false;}); // set mouse flag to false, when mouse leave the canvas.
+canvElem.addEventListener("mousemove",e=>{[mX,mY] = [e.clientX,e.clientY]
+ }); // update mouse coordinates with curren position.
+//*************************** logic *********************************
+class Particle{
+    constructor(x,y){ // constructor method of Particle class.
+        this.x = x; // horizontal position.
+        this.y = y; // vertical position.
+        this.radius = Math.random()*5+5; // random particle radius in range 5-10px.
+        this.opacity = Math.random()*0.5+0.1; // random opacity between 0.1-0.6
+        this.velX = (Math.random()-0.5)*0.03; // random horizontal velocity (pixels per millisecond)
+        this.velY = Math.random()*-.03-.03; // random vertical velocity.
+        this.age = 0; // track life time of the particle.
+    }
+    update(t){ // update particle state based on time elapsed (frameTime).
+        this.x += t*this.velX; // move horizontally.
+        this.y += t*this.velY; // move vertically.
+        this.radius += t*0.01; // particle grows over time.
+        this.opacity -= t*0.0001; // particle gradually fades.
+        this.age += t; // track particle's age.
+    }
+    render(){ // draw the particle on canvas.
+        ctx.save(); // save current canvas state.
+        ctx.globalAlpha = this.opacity; // transparency for all furure drawings.
+        ctx.fillStyle = `rgba(100,100,100,${this.opacity})`; // set fillStyle as gray color with particle opacity as alpha channel(this channel specifies the opacity).
+        ctx.beginPath(); // starts a new path.
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2); // arc from 0 to 2π forms a circle.
+        ctx.fill(); // fill the cirle with fillStyle color.
+        ctx.restore(); // restore canvas state.
+    }
+}
+function animate(timestamp){ // animation function(loop) called recursively (requestAnimationFrame(animate)).
+    if(!lastTime) lastTime = timestamp; // initialze lastTime for the first frame.
+    const frameTime = timestamp-lastTime; // calculate time since last frame (in milliseconds).
+    lastTime = timestamp; // for the next frame current timestamp will be lastTime.
+    const [w,h] = [canvElem.width, canvElem.height]; // desctucturing assignment syntax, for concise code(less typing too).
+    ctx.fillStyle = 'rgba(0,0,0,0.05)'; // semi-transparent black color to clear canvas and create a slight trail effect.
+    ctx.fillRect(0,0,w,h); // clear canvas.
+    for(let i = 0; i < 3; i++){ // loop to generate 3 new particles every frame.
+        let x, y; // store coordinate to pass to Particle contstructor(initial particle coordinates)
+        [x,y] = mouseOnCanv ? [mX,mY] : [w/2,h/2]; // ternary operator, depending on whether mouse in on canvas, assing x,y to mouse positio on center of the canvas(viewport); 
+        particles.push(new Particle(x,y)); // create particle object and push it in array.
+    }
+    particles.forEach((p,i)=>{ // forEach loops through each element(object representing particle) in array particles.
+        p.update(frameTime); // update particle state(coordinate, opacity, age...).
+        p.render(); // calls function to draw the particle on canvas.
+        if(p.age > 6000){ // if particle older then 6sec it will be removed from array. RIP partice with index i, because i is the index of particle p.
+            particles.splice(i,1);
+        }
+    });
+    requestAnimationFrame(animate); // loops animation.
+}
+//*************************** initialization ************************
+canvElem.width = containerElem.offsetWidth; // set canvas dimensions equl to its contaner.
+canvElem.height = containerElem.offsetHeight;
+requestAnimationFrame(animate); // start animation.
+//*******************************************************************
+        </script>
+    </body>
+</html>
