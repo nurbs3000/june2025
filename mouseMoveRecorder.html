@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Mouse Movement Recorder</title>
+        <style> /* CSS internal styling. */
+            *{ /* universal selector. Selects all elements. */
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box; /* include padding and border in element's total width and height. */
+                font: 22px Arial; /* default font settings. */
+            }
+            #wrapper{ /* id selector. */
+                width: 100vw; /* 100% of the viewport's width. */
+                height: 100vh; /* 100% of the viewport's height. */
+                display: flex; /* flexible box layout model. */
+                flex-direction: column; /* stack children verticaly. */
+            }
+            header{ /* type selector. Selecs semantic element header. */
+                width: 100%; /* 100% of the parent's width. */
+                height: 60px; /* fixed height. */
+                display: flex; /* flexible box layout model. */
+                justify-content: space-evenly; /* evenly space children. */
+                align-items: center; /* center children vertically. */
+                background-color: gray; /* your choise of color. */
+            }
+            main{ /* type selector. Selects sematic element main. */
+                width: 100%; /* 100% of the parent's width. */
+                height: 100%; /* takes remaining vertica space (100vh-60px). */
+                position: relative; /* for absolute positioning of children. */
+                background-color: gainsboro; /* up to you. */
+            }
+            button{ /* type selector. */
+                min-width: 160px; /* minimum width. */
+                height: 40px; /* fixed height. */
+            }
+            img{ /* type selector. There is only one image - cursor image. */
+                width: 25px; /* fixed width and height. */
+                height: 25px;
+                transform: translate(-7px,-3px); /* adjust position to match real cursor. */
+                position: absolute; /* position relative to main. Required for style.left, style.top to work. */
+                display: none; /* hidden by default. */
+            }
+        </style>
+    </head>
+    <body>
+        <div id="wrapper"> <!-- wrapps everything. Top level container. -->
+            <header> <!-- contain control elements. -->
+                <button id="start-stop">Start Rec.</button> <!-- toggle button to start/stop recording. -->
+                <div id="info" style="min-width:160px;"></div> <!-- info display area. -->
+                <button id="playback">Playback</button> <!-- playback button. -->
+            </header>
+            <main> <!-- main content area. Here the mouse movements are tracked. -->
+                <img src="arrow-cursor-50.png"> <!-- curson image for playback. -->
+            </main>
+        </div>
+        <script> // embedded JavaScript. 
+//*************************** global variables **********************
+const mainBRect = document.querySelector("main").getBoundingClientRect(); // get the bounding rectangle for main element for local coordinate calulations.
+// HTML elements references.
+const startStopElem = document.querySelector("#start-stop");
+const infoElem = document.querySelector("#info");
+const cursorImgElem = document.querySelector("img");
+let isRecording = false; // boolean frag representing recording state.
+let startTime; // timestamp when recording starts.
+const mousePositions = []; // array to store recorded mouse postions (objects).
+//*************************** events ********************************
+document.querySelector("#start-stop").addEventListener("click",startStopRec); // toggle button event to start/stop recording.
+document.querySelector("#playback").addEventListener("click",playBack); // playback button event.
+document.querySelector("main").addEventListener("mousemove",record); // mouse move event on main element.
+//*************************** logic *********************************
+function startStopRec(){ // toggles recording state (isRecording true/false)
+    if(isRecording){ // check if currently recording;
+        isRecording = false; // stop recording.
+        startStopElem.textContent = "Start Rec."; // change button's text.
+    }else{ // if not recording.
+        isRecording = true; // start recording.
+        startStopElem.textContent = "Stop Rec."; // change button's text.
+        startTime = Date.now(); // store the recording start time.
+        mousePositions.length = 0; // clear previous recordings.
+        infoElem.textContent = "positions: "; // reset display info.
+    }
+}
+function record(e){ // records mouse position an timing.
+    if(!isRecording) return; // return if recording is not active (isRecording === false).
+    mousePositions.push({ // push object representing current mouse position in array.
+        x: e.clientX - mainBRect.left, // local mouse cursor (relative to main) horizontal coordinate.
+        y: e.clientY - mainBRect.top, // local mouse vertical coordinate.
+        time: Date.now()-startTime, // ms since recording begins.
+    });
+    infoElem.textContent = "positions: "+mousePositions.length; // update info display with number of recorded positions.
+}
+function playBack(){ // plays back the recorded mouse positions.
+    if(mousePositions.length === 0 || isRecording) return; // return if there are no recording or if currntly is recording.
+    let idx = 0, intervalId; // function scope variables for iterating current index in mousePositions array and interval ID to clear it later (when playback ends).
+    startTime = Date.now(); // start time for playback.
+    cursorImgElem.style.display = "block"; // show the curson image.
+    intervalId = setInterval(()=>{ // setInteval with 10ms.
+        const currentTime = Date.now()-startTime; // elapsed time (time since playback started.
+        while(idx < mousePositions.length && mousePositions[idx].time <= currentTime){ // process all positions that should have occured by currentTime.
+            cursorImgElem.style.left = mousePositions[idx].x+"px"; // set cursor image horizontally.
+            cursorImgElem.style.top = mousePositions[idx].y+"px"; // vertically.
+            infoElem.textContent = "position: "+idx; // display current position index.
+            idx++; // increment position index.
+        }
+        if(idx >= mousePositions.length){ // check if loop reached end of the array.
+            clearInterval(intervalId); // stop the inteval.
+            cursorImgElem.style.display = "none"; // hide the curson image.
+        }
+    }, 10); // run every 10 milliseconds.
+}
+//*******************************************************************
+        </script>
+    </body>
+</html>
