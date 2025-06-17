@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Fisher-Yates Shuffle Algorithm</title>
+        <style> /* CSS internal styling. */
+            *{ /* universal selector. Selects all elements. */
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box; /* include padding and border in element's total width and height. */
+                font-family: Arial; /* default font. */
+                font-weight: bold;
+            }
+            #wrapper{ /* id selector. */
+                width: 100vw; /* 100% of the viewport's width. */
+                height: 100vh; /* 100% of the viewport's height. */
+                display: grid; /* enables place-self: center; for its child - main element. */
+                background: steelBlue; /* or whatever color you like. */
+                overflow: hidden; /* clip overflown content, no scoll bars.*/
+            }
+            main{ /* type selector. Selects semantic element main. */
+                background-color: orange; 
+                place-self: center; /* center itself vertically and horizontally. */
+                position: relative; /* for children positioning. */
+            }
+            .array-element{ /* class selector. All divs created by JS (representing arrray elements) will have this class name. */
+                position: absolute; /* required to enable positioning by JS. */
+                z-index: 0; /* default stacking order. */
+                background-color: orangeRed;
+                border: 2px solid navy;
+                color: navy;
+                border-radius: 5px;
+                display: grid;
+                place-items: center; /* centers content horizontally and vertically. */
+                box-shadow: /* just a litlle bit of design. */
+                    3px 3px 5px rgba(0, 0, 0, 0.3),
+                    inset 0 0 7px rgba(255, 255, 255, 0.2);
+                transition: background-color 300ms linear; /* smooth background transition. */
+                font-size: 22px;
+            }
+            svg{
+                z-index: 1; /* SVG are over elements (to be visible). */
+                position: relative;
+                /* display: none; */ /* uncomment this line to hide SVG. */
+            }
+        </style>
+    </head>
+    <body>
+        <div id="wrapper"> <!-- top-level container. Wrapps everything. -->
+            <main> <!-- will contain created divs. Dimensions will be set by JS. -->
+                <svg> <!-- SVG containing 2 arcs set by JS, and uset to animmate array elements movements during shuffle. -->
+                    <path id="first-path" d="" stroke="magenta" stroke-width="2" fill="none"/> <!-- 1st path. 'd' attribute will be contructores by script. -->
+                    <path id="second-path" d="" stroke="cyan" stroke-width="2" fill="none"/> <!-- 2nd path. -->
+                </svg>
+            </main>
+        </div>
+        <script> // embeded JavaScript.
+//*************************** global variables **********************
+const wrapperElem = document.querySelector("#wrapper"); // 5 DOM element references.
+const mainElem = document.querySelector("main");
+const svgElem = document.querySelector("svg");
+const firstPathElem = document.querySelector("#first-path");
+const secondPathElem = document.querySelector("#second-path");
+//*************************** logic *********************************
+async function fisherYatesShuffle(){ // Fisher-Yates shuffle algorithm. Will call swapAnimation() with await, which returns Promise. async keyword will allow to wait for Promise to be resolved in real time. 
+    const myArray = Array.from(mainElem.querySelectorAll(".array-element"),v=>parseInt(v.id.match(/\d+/)[0])); // Get NodeList of divs created by initArray() function. And converts it to regular array like [0,1,2,...].
+    let index = myArray.length; // algorithm starts from the end of the array.
+    while(index){ // while index !== 0
+        const randomIndex = Math.floor(Math.random()*index--); // pick random element from yet not shuffled. and decrease by 1 index.
+        [myArray[index],myArray[randomIndex]] = [myArray[randomIndex],myArray[index]]; // swap it with current element.
+        await swapAnimation(index,randomIndex); // perform animation. Wait for promise to be resolved, since swapAnimation returns promise.
+    }
+}
+function swapAnimation(i,j){ // Create 2 SVG Arcs to animate swapped elements i and j along. Implement WEB Animation API to configure and play animation of swapped elements.
+    return new Promise((res,rej)=>{ // Promise, am sure you know what it is.
+        const iElem = document.querySelector(`#index${i}`); // reference to 1st element to animate.
+        const jElem = document.querySelector(`#index${j}`); // 2nd element.
+        iElem.style.zIndex = "1"; jElem.style.zIndex = "1"; // bring elements to front during animation.
+        const [x1,y1,x2,y2] = [iElem.style.left,iElem.style.top,jElem.style.left,jElem.style.top].map(v=>parseInt(v)); // desctructuring assignment syntax. Get curren positions of elements.
+        // Create arc path for first element i → j.
+        let d = ` 
+        M ${x1} ${y1}
+        A ${Math.hypot(x2-x1,y2-y1)/2} ${parseInt(iElem.style.width)/3*2}
+        ${Math.atan2(y2-y1,x2-x1)/Math.PI*180} 0 0
+        ${x2} ${y2}`;
+        firstPathElem.setAttribute("d",d); // set constructed attribute.
+        // Create arc path for second element j → i.
+        d = `
+        M ${x2} ${y2}
+        A ${Math.hypot(x2-x1,y2-y1)/2} ${parseInt(iElem.style.width)/3*2}
+        ${Math.atan2(y1-y2,x1-x2)/Math.PI*180} 0 0
+        ${x1} ${y1}`;
+        secondPathElem.setAttribute("d",d);
+        const pathLength1 = firstPathElem.getTotalLength(); // full length of the path in pixels.
+        const pathLength2 = secondPathElem.getTotalLength();
+        const keyframes1 = [], keyframes2 = []; // arrays to store keyframe objects. 
+        for(let i = 0; i <= 20; i++){ // loop with 21 steps along the path to create 21 keyframe objects.
+            const progress = i/20;
+            const point1 = firstPathElem.getPointAtLength(progress*pathLength1); // get points along the path at each progress step.
+            const point2 = secondPathElem.getPointAtLength(progress*pathLength2);
+            keyframes1.push({ // create keyframes for iElem.
+                offset: progress,
+                left: point1.x+"px",
+                top: point1.y+"px",
+            });
+            keyframes2.push({ // create keyframes for jElem.
+                offset: progress,
+                left: point2.x+"px",
+                top: point2.y+"px",
+            });
+        }
+        const animation1 = iElem.animate( // Create animation (WAAPI).
+            keyframes1,
+            {
+                duration: pathLength1*6,
+                iterations: 1,
+                easing: 'linear',
+                fill: "forwards",
+            }
+        );
+        const animation2 = jElem.animate( // Create animation (WAAPI).
+            keyframes2,
+            {
+                duration: pathLength2*6,
+                iterations: 1,
+                easing: "linear",
+                fill: "forwards",
+            }
+        );
+        Promise.all([animation1.finished,animation2.finished]) // resolves when both animations are finished.
+            .then(()=>{
+                iElem.style.left = x2 + "px"; // update final position(swap is finished.
+                iElem.style.top = y2 + "px";
+                jElem.style.left = x1 + "px";
+                jElem.style.top = y1 + "px";
+                iElem.style.zIndex = "0"; jElem.style.zIndex = "0"; // reset z-index.
+                jElem.style.backgroundColor = "mediumSeaGreen"; // change color for shuffled element.
+                [iElem.id,jElem.id] = [jElem.id,iElem.id]; // swap IDs to maintain consistency.
+                animation1.cancel(); // clean up both animations.
+                animation2.cancel();
+                res(); // resolve the promise.
+            })
+    });
+}
+function initArray(){ // initializes the array(create, style and append divs into main.
+    const sizes = [50,70,90,110]; // possible element sizes.
+    const rect = wrapperElem.getBoundingClientRect(); // object containing dimensions and position of wrapper.
+    const [W,H] = [rect.width,rect.height]; // destructuring assignment syntax. Wrapper's width and height.
+    svgElem.setAttribute("width",W); // set SVG elemen's dimensions.
+    svgElem.setAttribute("height",H);
+    const size = sizes[Math.random()*sizes.length | 0]; // pick random element size from array. | 0 is fast florr, equivalent to Math.floor().
+    let [rowQt,colQt] = [H/size | 0, W/size | 0]; // destructuring assignmen synatx. Number of rows and columns to fit.
+    mainElem.style = `width:${colQt*size}px;height:${rowQt*size}px;`; // set widht and height of main element.
+    let index = 0; // variable to track number of element, while 2 for loops iterate over rows and columns.
+    for(let r = 1; r < rowQt-1; r++) // row's for loop.
+        for(let c = 1; c < colQt-1; c++){ // column's for loop.
+            const elem = document.createElement("div"); // create div.
+            elem.style = `width:${size-4}px;height:${size-4}px;left:${c*size+size/2}px;top:${r*size+size/2}px;`; // set it size leaving 4px "margin" and position it in the grid.
+            elem.style.transform = "translate(-50%,-50%)"; // center element.
+            elem.className = "array-element"; // class name, to enable CSS stylying to select all crated divs.
+            elem.id = `index${index}`; // id with digits part equal to the index.
+            elem.textContent = index; // display index as element content.
+            mainElem.appendChild(elem); // add to main.
+            index++; // increase index by 1.
+        }
+}
+//*************************** initialization ************************
+onload = ()=>{ // event is fired when page is loaded.
+    initArray();
+    fisherYatesShuffle();
+}
+//*******************************************************************
+        </script>
+    </body>
+</html>
