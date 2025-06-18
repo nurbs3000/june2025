@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Analog Clock</title>
+        <style> /* CSS internal styling. */
+            *{ /* universal selector. Selects all elements. */
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box; /* include padding and border in element's total width and height. */
+            }
+            #container{ /* id selector. */
+                width: 100vw; /* 100% of the viewport's width. */
+                height: 100vh; /* 100% of the viewport's width. */
+                background-color: cadetBlue; /* your choice. */
+                position: relative; /* establishes positioning contex for children. */
+            }
+            #container>div{ /* selects all divs which are direct children of container. */
+                position: absolute; /* enables left, top, righ, left positioning. */
+            }
+        </style>
+    </head>
+    <body>
+        <div id="container"></div> <!-- JS will populate this container with divs representing clock. -->
+    <script>
+//*************************** logic *********************************
+function constructClock(){ // does what its name says.
+    const containerElem = document.querySelector("#container"); // reference to container element.
+    const [W,H] = [containerElem.offsetWidth, containerElem.offsetHeight]; // destructoring assignment syntax. References to container dimensions.
+    const R = Math.min(W,H)/3 | 0; // radius of the clock's dial, 1/3 of smallest dimension. | 0 is fasl floor, equivalent to Math.floor for positive integers.
+    const π = Math.PI; // (alt code 227). Alias for Math.PI for convenience and because it looks cool.
+    const dialElem = document.createElement('div'); // create clock dial(face of the clock).
+    dialElem.style =  // style attribute. Position dial in center.
+        `width:${R*2}px; 
+         height:${R*2}px;
+         left:${W/2-R}px;
+         top:${H/2-R}px;
+         border-radius:50%;
+         background-color:snow; 
+         border:${R/7}px solid gainsboro;`;
+    containerElem.appendChild(dialElem); // put inside container.
+    for(let i = 1; i <= 12; i++){ // loop to create 12 hour markers.
+        const hourNumElem = document.createElement('div'); // create div - conteiner for text - hours(1-12).
+        hourNumElem.style = // inline styling. Position using trigonometry. π/6*i - angle for each hour, -π/2 offset to start at top (12 o'clock position). 
+            `width:${R/5}px;
+             height:${R/5}px;
+             left:${W/2+R*3/4*Math.cos(π/6*i-π/2)}px;
+             top:${H/2+R*3/4*Math.sin(π/6*i-π/2)}px;
+             color: black; 
+             font-size:${R/6}px; 
+             display:grid; 
+             place-items:center;`
+        hourNumElem.style.transform = `translate(-50%,-50%)`; // center on 0,0 point.
+        hourNumElem.textContent = i; // set the hour text (1-12).
+        containerElem.appendChild(hourNumElem); // append to container.
+    }
+    const secondHandElem = document.createElement('div'); // create second hand.
+    secondHandElem.style = // style attribute. 
+        `width:${R/50}px; 
+         height:${R}px; 
+         left:${W/2}px; 
+         top:${H/2}px; 
+         background-color:maroon;`;
+    containerElem.appendChild(secondHandElem); // append to container;
+    const minuteHandElem = document.createElement('div'); // the same logic for minute hand, except it is black and a bit shorter.
+    minuteHandElem.style = 
+        `width:${R/40}px; 
+         height:${R/4*3}px; 
+         left:${W/2}px; 
+         top:${H/2}px; 
+         background-color:black;`;
+    containerElem.appendChild(minuteHandElem);
+    const hourHandElem = document.createElement('div'); // the same logic for hour hand.
+    hourHandElem.style = 
+        `width:${R/30}px; 
+         height:${R/2}px; 
+         left:${W/2}px; 
+         top:${H/2}px; 
+         background-color:black;`;
+    containerElem.appendChild(hourHandElem);
+    const axisElem = document.createElement('div'); // the pin that holds hands together.
+    axisElem.style = // style attribute. z-index:1 ensures it appears above the hands.
+        `width:${R/10}px; 
+         height:${R/10}px; 
+         left:${W/2-R/20}px; 
+         top:${H/2-R/20}px; 
+         border-radius:50%; 
+         background-color:maroon; 
+         border: ${R/30}px solid black; 
+         z-index:1;`;
+    containerElem.appendChild(axisElem);
+    function updateTime(){ // update clock hands based on current time.
+        const now = new Date(); // get current time.
+        let [h,m,s] = [now.getHours(), now.getMinutes(), now.getSeconds()]; // destructuring assignment syntax. Get hours, minutes, and seconds.
+        secondHandElem.style.transformOrigin = "50% 80%"; // set center of rotation (default 50%,50%).
+        secondHandElem.style.transform = `translate(-50%,-80%) rotate(${s/60*2*π}rad)`; // rotate based on seconds and translate to place rotation pivot point in the clock's center.
+        minuteHandElem.style.transformOrigin = "50% 90%"; // the same logic for minutes.
+        minuteHandElem.style.transform = `translate(-50%,-90%) rotate(${m/60*2*π}rad)`;
+        hourHandElem.style.transformOrigin = "50% 90%"; // the same logic for hours.
+        hourHandElem.style.transform = `translate(-50%,-90%) rotate(${h/12*2*π}rad)`;
+    }
+    updateTime(); // initial time update. No one wants to wain 1sec for clock to start running.
+    setInterval(updateTime,1000); // update every 1000ms.
+}
+//*************************** initialization ************************
+onload = ()=>{constructClock();} // launch the process.
+//*******************************************************************
+    </script>
+    </body>
+</html>
