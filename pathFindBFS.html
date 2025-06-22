@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Pathfinding BFS algorithm</title>
+        <style> /* internal CSS styling. */
+            *{ /* Universal selector. Selects all elements. */
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box; /* Include border and padding in element's total width and height. */
+                font: 22px Arial; /* Default font size and family. */
+            }
+            #wrapper{ /* ID selector. */
+                width: 100vw; /* 100% of the viewport's width. */
+                height: 100vh; /* 100% of the viewport's height. */
+                background-color: teal; /* All colors are up to you. */
+                display: flex; /* Flexible layout box model. */
+                flex-direction: column; /* Vertical flex main axis. */
+            }
+            header{ /* Type selector. */ 
+                width: 100%; /* 100% of the parent's width. */
+                height: 70px; /* Fixed heigth. */
+                background-color: mediumSeaGreen;
+                display: flex; /* Flexible layout box model. */
+                justify-content: space-evenly; /* Place children evenly along main axis(horizontally by default. */
+                align-items: center; /* Center children along cross axis. */
+            }
+            main{ /* Type selector. */
+                width: 100%; /* 100% of the parent's width. */
+                height: 100%; /* 100% of remaining free height (100vh-70px). */
+                background-color: darkOrange;
+                display: grid; /* Grid layout, only to enable place-items property. */
+                place-items: center; /* Aling items to the center. */ 
+                position: relative; /* For absolute positioning of canvas. */
+            }
+            canvas{ /* Type selector. */
+                position: absolute; 
+                background-color: #111;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="wrapper"> <!-- Top level container. Wrapps everithing. -->
+            <header> <!-- Semantic element, can be <div> with some id. Contains 4 control elelemts. -->
+                <div>Cell size<br>
+                    <input class="cell-size" type="number" min="4" max="30" value="25">
+                </div>
+                <div>Pairs Qt.<br>
+                    <input class="pairs-qt" type="number" min="2" max="20" value="5">
+                </div>
+                <div>Show Grid<br>
+                    <input class="show-grid" type="checkbox" checked autocomplete="off" style="width:25px;height:25px;">
+                </div>
+                <div>Delay:<span class="delay-time">10</span>ms<br>
+                    <input class="delay-time" type="range" min="0" max="100" value="10" autocomplete="off">
+                </div>
+            </header>
+            <main> <!-- Container for canvas. -->
+                <canvas></canvas> <!-- no comments. -->
+            </main>
+        </div>
+        <script>
+//*************************** global variables **********************
+const mainElem = document.querySelector("main"); // Reference to main element.
+const cnvElem = document.querySelector("canvas"); // Reference to canvase element.
+const ctx = cnvElem.getContext("2d"); // Canvas 2d drawing context.
+let rowQt, colQt; // Number of rows and columns in the grid.
+let cellSize; // size of each cell in pixels.
+let delay = 10; // delay between animation steps in milliseconds.
+let cells; // initialze function will assing to this variable 2d array of objects representing cells in the grid.
+const nodes = []; // array to store all node pairs (star and end nodes).
+
+//*************************** events ********************************
+document.querySelector("input.delay-time").addEventListener("input",e=>{ // update 'delay'.
+    delay = ~~e.target.value; // ~~ double bitwise NOT. Convert string to integer.
+    document.querySelector("span.delay-time").textContent = delay;
+});
+document.querySelector("input.cell-size").addEventListener("change",()=>{
+    location.reload(); // Reload the page (full reset).
+});
+document.querySelector("input.pairs-qt").addEventListener("input",()=>{
+    location.reload(); // Reload the page (full reset).
+});
+//*************************** logic *********************************
+function initialize(){
+    cellSize = ~~document.querySelector("input.cell-size").value; // get cell size from input element (~~ is equivalent to Math.floor() for positive integers.
+    const [W,H] = [mainElem.offsetWidth,mainElem.offsetHeight]; // destructuring syntax. Main element's widht and height - maximum possible width and height for child - canvas element.
+    [rowQt,colQt] = [H/cellSize | 0, W/cellSize | 0]; // number of rows and columns ( | 0 is fast alternative to Math.floor for positive integers.
+    [cnvElem.width,cnvElem.height] = [colQt*cellSize,rowQt*cellSize]; // set canvas dimensions.(destructuring assingnment syntax).
+    cells = Array.from({length: colQt}, () => // initialize 2d array with defautl object - initial state of the empty cell.
+        Array.from({length: rowQt}, () => ({
+            hue: null, // color hue (0-360).
+            visited: false, // whether cell has been visited when bfs() function search for a path to connect 2 nodes(cells).
+            path: false, // whether cell is part of a found path.
+            cameFrom: null, // reference to previous cell in path.
+        }))
+    );
+}
+function createNodes(){ // creates pairs of start and end nodes(random positions within grid with some restrictions.
+    const minPairDist = Math.min(colQt,rowQt)/3 | 0; // minimum distance beween 2 nodes in pair (to ensure that path will not be too short and looks cool).
+    const minDist = 3; // minimum distance between any 2 points and from grid(canvas) edges.
+    const randomNode = ()=>({x: Math.random()*(colQt-2*minDist)+minDist | 0, y: Math.random()*(rowQt-2*minDist)+minDist | 0}); // helper function to generate random node position within bounds. | 0 is fast floor.
+    let pairsQt = ~~(document.querySelector("input.pairs-qt").value); // get number of node pairs from input element.
+    while(pairsQt--){ // while loop until all pairs are done(there is forced break out of loop, if there in no more room for nodes).
+        let retries = 10000, node1, node2; // maxum number of tries to place node, start node, end node. 
+        while(retries--){ // while loop to find valid position for start node.
+            node1 = randomNode(); // get random position on the grid.
+            if(nodes.every(v=>Math.hypot(node1.x-v.x,node1.y-v.y) > minDist)) break; // break out of the loop, if node is not too close to any of aleady placed nodes. 
+        }
+        if(retries <= 0) break; // retries <= 0 means that previos while loop exhaust all 'retries' trying to place a node, and there in no more room for nodes. Break out of the while(pairsQt--) loop. 
+        retries = 10000; // set number of retries to place end node. 
+        while(retries--){ // the same logic as for the start node, except we check for one additional check. And refactored logic(for educational purposes).
+            node2 = randomNode(); // get random position on the grid.
+            if(Math.hypot(node2.x-node1.x,node2.y-node1.y) < minPairDist) continue; // skip to loop start, if end node is too close to start node
+            if(nodes.some(v=>Math.hypot(node2.x-v.x,node2.y-v.y) < minDist)) continue; // skip loop start, if any of already placed nodes is to close.
+            break; // if we are here means node2 is OK - break out of loop.
+        }
+        if(retries <= 0) break; // read the comment for the same line of code above.
+        const hue = Math.random()*360 | 0; // random hue in 0-360 range.   
+        [node1.hue,node2.hue] = [hue,hue]; // desctructuring syntax, assign hue to both nodes.
+        node1.cameFrom = null; // assign path trackin properties.
+        node2.cameFrom = null; 
+        nodes.push(node1,node2); // add both nodes to the array.
+    }
+    nodes.forEach(v=>{ // mark node positions as visited in the grid.
+        cells[v.x][v.y].visited = true;
+    });
+}
+async function bfs(){ // Breadth first search - main algorithm to find paths conneting both nodes in each pair of nodes. async/await syntax is required to enable waiting for Promise to resolve in real time (sleep() function return a Promise) - "slow motion" do showcase BFS algorithm.
+    const directions = [[-1,0],[1,0],[0,-1],[0,1]]; // 4 possible movement directions (ortogonal only). 
+    for(let i = 0; i < nodes.length; i += 2){ // process each pair of nodes, stored in nodes array.
+        const queue = [nodes[i]]; // initialize queue with the start node.
+        const targetNode = nodes[i+1]; // get corresponding target node(end node).
+        while(queue.length > 0){ // process queue until empty or path found.
+            const currNode = queue.shift(); // get the next node from queue. FIFO - first in first out, it is the main feature of BFS algorithm.
+            for(const [dx,dy] of directions){ // explore all 4 neighboring cells.
+                const [nx,ny] = [currNode.x+dx,currNode.y+dy]; // destructuring syntax. Declare and assing current neighboring cell position.
+                if(nx < 0 || nx === colQt || ny < 0 || ny === rowQt) continue; // skip if out of bounds.
+                if(nx === targetNode.x && ny === targetNode.y){ // check if we've reachd the target. 
+                    // mark target cell properties.
+                    cells[nx][ny].visited = true; 
+                    cells[nx][ny].cameFrom = {x: currNode.x, y: currNode.y};
+                    cells[nx][ny].hue = currNode.hue;
+                    await buildPath({x:nx, y:ny, cameFrom:{x:currNode.x, y:currNode.y}}); // build and visualize the path, passing as agrument object representing target(end) node.
+                    queue.length = 0; // clear queue befor moving to next pair of nodes.
+                    break; // break out of for(const [dx,dy] of directions) loop, since path is found.
+                }
+                if(!cells[nx][ny].visited){ // process unvisited cells.
+                    // mark cell properties.
+                    cells[nx][ny].visited = true;
+                    cells[nx][ny].cameFrom = {x: currNode.x, y: currNode.y};
+                    cells[nx][ny].hue = currNode.hue;
+                    queue.push({x:nx, y:ny, hue: currNode.hue, cameFrom:{x:currNode.x, y:currNode.y}}); // push in the queue object represeinting this cell.
+                }
+            }
+            render(); // update canvas.
+            await sleep(delay); // wait/pause 'delay' milliseconds - slow motion.
+        }
+        if(!cells[targetNode.x][targetNode.y].path) alert("Cant build path!"); // show warning if path is not found.
+    }
+}
+async function buildPath(node){ // reconsruct and visualize the path from target(end) back to start. Follows cameFrom references backward and mark path cells as visited(to be untouchable for next paths search).
+    let [x,y] = [node.x,node.y]; // destructuring syntax. Set coordinates to target cell coordinates.
+    while(node.cameFrom !== null){ // walk backward through cameFrom references until start node.
+        cells[x][y].path = true; // mark as part of the path.
+        [x,y] = [node.cameFrom.x,node.cameFrom.y]; // desctucturing syntax. Next path's cell coordinates.
+        node = cells[node.cameFrom.x][node.cameFrom.y]; // set local 'node' as pointe to the next cell(node) in path.
+        render(); // render canvas.
+        await sleep(100); // pause for 0.1sec.
+    }
+    cells[x][y].path = true; // mark the starting cell as part of path. 
+    for(let x = 0; x < colQt; x++) // 2 for loops (1 nested within another) scan each cell in the grid (2d cells array).
+        for(let y = 0; y < rowQt; y++){ 
+            const node = cells[x][y]; // reference to the current cell(node)
+            if(!node.path){ // if it is not part of already constructed path(for previous pair). Clean this cell (reset propeties to default).
+                node.visited = false;
+                node.cameFrom = null;
+                node.hue = null;
+            }
+        }
+    nodes.forEach(v=>{ // re-mark node positions, since they get cleared in the cleanup above.
+        cells[v.x][v.y].visited = true;
+    });
+}
+function render(){ // renders the current state of the grid on the canvas.
+    ctx.clearRect(0,0,cnvElem.width,cnvElem.height); // erase everything.
+    const showGrid = document.querySelector("input.show-grid").checked; // set booleah flag variable.
+    if(showGrid){ // draw grid if checkbox is checked.
+        ctx.lineWidth = 1;
+        for(let r = 1; r < rowQt; r++){ // horizontal grid lines.
+            ctx.strokeStyle = "#222";
+            ctx.beginPath();
+            ctx.moveTo(0,r*cellSize);
+            ctx.lineTo(cnvElem.width,r*cellSize);
+            ctx.stroke();
+        }
+        for(let c = 1; c < colQt; c++){ // vertical grid lines.
+            ctx.strokeStyle = "#222";
+            ctx.beginPath();
+            ctx.moveTo(c*cellSize,0);
+            ctx.lineTo(c*cellSize,cnvElem.height);
+            ctx.stroke();
+        }
+    }
+    for(let x = 0; x < colQt; x++) // 2 for loops(1 nested) scann each cell coordinates in the grid (cells 2d array).
+        for(let y = 0; y < rowQt; y++){
+            const n = cells[x][y]; // reference to the current cell.
+            if((n.visited || n.path) && n.cameFrom !== null){ // only draws if cell been visited or is part of a path.
+                ctx.lineWidth = cellSize/3 | 0; // thick line.
+                ctx.strokeStyle = n.path // ternary operator to choose path(line) color. 
+                    ? `hsl(${n.hue},100%,50%)` // bright color for path. 
+                    : `hsl(${n.hue},90%,20%)`; // darker color for visited.
+                ctx.beginPath(); // start drawing line. Am sure you know the rest 3 draw methods.
+                ctx.moveTo((x+.5)*cellSize,(y+.5)*cellSize);
+                ctx.lineTo((n.cameFrom.x+.5)*cellSize,(n.cameFrom.y+.5)*cellSize);
+                ctx.stroke();
+            }
+        }
+    nodes.forEach(n=>{ // draw all nodes (they are last to be on top of lines).
+        ctx.fillStyle = `hsl(${n.hue},100%,50%)`;
+        ctx.beginPath();
+        ctx.arc((n.x+.5)*cellSize,(n.y+.5)*cellSize,cellSize/10*4,0,2*Math.PI);
+        ctx.fill();
+    });
+}
+function sleep(ms){ // return a promise which resolves after 'ms' milliseconds. async/await syntax force functions callint sleep() to wait for it in real time.
+    return new Promise(r=>setTimeout(r,ms));
+}
+//*************************** initialization ************************
+onload = ()=>{ // event is fired when page is loaded.
+    initialize(); // set up grid and canvas.
+    createNodes(); // generate random node pairs.
+    bfs(); // breadth first search function itself.
+}
+//*******************************************************************
+        </script>
+    </body>
+</html>
