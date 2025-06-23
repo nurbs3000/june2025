@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html land="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Triangle HTML element. Create and Edit</title>
+        <style> /* Internal CSS styling. */
+            *{ /* Universal selector. Selects all elements. */
+                margin: 0; /* Removes default margins. */
+                padding: 0; /* Removes default padding. */
+                box-sizing: border-box; /* Include padding and borders in element's total width and height. */
+                font-size: 18px; /* Set base font size. */
+            }
+            #wrapper{ /* ID selector. */
+                width: 100vw; /* 100% of the viewport's width. */
+                height: 100vh; /* 100% of the viewport's height. */
+                display: flex; /* Flexible layout box model. */
+                flex-direction: column; /* Stack children vertically. */
+            }
+            header{ /* Type selector. Semantic HTML element header. */
+                width: 100%; /* Full width of the parent. */
+                height: 170px; /* Fixed height. */
+                padding: 10px 20px; /* Internal spacing. */
+                display: grid; /* CSS grid layout. */
+                grid-template-rows: repeat(6,1fr); /* 6 rows with 1fraction height. */ 
+                grid-template-columns:30px 200px 120px 40px 70px 120px 300px; /* Set width for 7 columns. */
+                background-color: darkSlateGray; /* All colors are up to you. */
+                color: gainsboro;
+            }
+            main{ /* Type selector. Semantic main element. */
+                width: 100%; /* Full width of the parent. */
+                height: 100%; /* All remaing free heigth (100vh-170px). */
+                background-color: #111;
+                display: flex; /* flexible layout box model. */
+                justify-content: center; /* center along main axiz (horizontal by default). */
+                align-items: center; /* center along cross axiz (vertical by default. */
+            }
+            main div{ /* Complex selector. Selects edited div element inside main. */
+                background-color: transparent; /* No fill color. You can set some color, to see results. */
+            }
+        </style>
+    </head>
+    <body>
+        <div id="wrapper"> <!-- main page container. Wrapps everything. -->
+            <header> <!-- Contains control elements. -->
+                <!-- Border toggle checkboxes. Each checkbox enables/disables a border(top, right, bottom, left). -->
+                <input style="grid-area:2/1/3/2" id="top" type="checkbox" checked autocomplete="off">
+                <input style="grid-area:3/1/4/2" id="right" type="checkbox"  autocomplete="off">
+                <input style="grid-area:4/1/5/2" id="bottom" type="checkbox" checked autocomplete="off">
+                <input style="grid-area:5/1/6/2" id="left" type="checkbox" checked autocomplete="off">
+                <!-- Border width labels. -->
+                <div style="grid-area:2/2/3/3;" id="top-width">border-top-width:</div>
+                <div style="grid-area:3/2/4/3;" id="right-width">border-right-width:</div>
+                <div style="grid-area:4/2/5/3;" id="bottom-width">border-bottom-width:</div>
+                <div style="grid-area:5/2/6/3;" id="left-width">border-left-width:</div>
+                <!-- Border width sliders. -->
+                <input style="grid-area:2/3/3/4;" id="border-top-width" type="range" min="1" max="200" value="100" autocomplete="off">
+                <input style="grid-area:3/3/4/4;" id="border-right-width" type="range" min="1" max="200" value="100" autocomplete="off">
+                <input style="grid-area:4/3/5/4;" id="border-bottom-width" type="range" min="1" max="200" value="100" autocomplete="off">
+                <input style="grid-area:5/3/6/4;" id="border-left-width" type="range" min="1" max="200" value="178" autocomplete="off">
+                <!-- Transparency control label. -->
+                <div style="grid-area:1/4/2/5;margin-left:-40px;" >Transparent.</div>
+                <!-- Transparence checkboxes. -->
+                <input style="grid-area:2/4/3/5" id="top-transparent" type="checkbox" checked autocomplete="off">
+                <input style="grid-area:3/4/4/5" id="right-transparent" type="checkbox" autocomplete="off">
+                <input style="grid-area:4/4/5/5" id="bottom-transparent" type="checkbox" checked autocomplete="off">
+                <input style="grid-area:5/4/6/5" id="left-transparent" type="checkbox" autocomplete="off">
+                <!-- Border color pickers. -->
+                <input style="grid-area:2/5/3/6;height:22px" id="border-top-color" type="color" value="#0000ff" autocomplete="off" name="_">
+                <input style="grid-area:3/5/4/6;height:22px" id="border-right-color" type="color" value="#ff0000" autocomplete="off">
+                <input style="grid-area:4/5/5/6;height:22px" id="border-bottom-color" type="color" value="#00ff00" autocomplete="off">
+                <input style="grid-area:5/5/6/6;height:22px" id="border-left-color" type="color" value="#ff6600" autocomplete="off">
+                <!-- Div dimension controls. -->
+                <div style="grid-area:2/6/3/7;" id="width">width:</div>
+                <input style="grid-area:3/6/4/7;" id="div-width" type="range" min="0" max="400" value="0" autocomplete="off">
+                <div style="grid-area:4/6/5/7;" id="height">height:</div>
+                <input style="grid-area:5/6/6/7;" id="div-height" type="range" min="0" max="400" value="0" autocomplete="off">
+                <!-- CSS code display area. -->
+                <div style="grid-area:1/5/2/8;margin-left:30px;" >CSS-> dir &#123 box-sizing: border-box;</div>
+                <div style="grid-area:1/7/2/8;margin-left:105px;" id="css-line1"></div>
+                <div style="grid-area:2/7/3/8;" id="css-line2"></div>
+                <div style="grid-area:3/7/4/8;" id="css-line3"></div>
+                <div style="grid-area:4/7/5/8;" id="css-line4"></div>
+                <div style="grid-area:5/7/6/8;" id="css-line5"></div>
+                <div style="grid-area:6/7/7/8;">background-color: transparent; &#10101</div>
+            </header>
+            <main> <!-- Main content area where edited div appears. -->
+                <div></div> <!-- This div will be styled by JS. -->
+            </main>
+        </div>
+        <script>
+//*************************** global variables **********************
+headerElem = document.querySelector("header"); // Reference to the header element. 
+divElem = document.querySelector("main").firstElementChild; // Referency to the styled div (it is the only child there).
+//*************************** events ********************************
+headerElem.addEventListener("input",updateDiv); // One event listener for all input element.
+//*************************** logic *********************************
+function updateDiv(){ // Updates the div's style attribute based on control values.
+    let styleValue = ""; // CSS string will be build by code below.
+    ["width","height"].forEach(name=>{ // Handles width and height controls.
+        const value = document.querySelector(`#div-${name}`).value; // Get current slider value.
+        document.querySelector(`#${name}`).textContent = `${name}: ${value}px`; // Update the displyed label (e.g. "width 80px").
+        styleValue += `${name}:${value}px;`; // Add to contstructed CSS string.
+    });
+    document.querySelector("#css-line1").textContent = styleValue; // Display the width and height in the code preview.
+    ["top","right","bottom","left"].forEach((side,i)=>{ // Process each border (top, right, bottm, left).
+        if(!document.querySelector(`#${side}`).checked){ // check if this border is disabled.
+            document.querySelector(`#css-line${2+i}`).textContent = ""; // Clear it CSS line in preview.
+            return; // Skip to next border.
+        }
+        const width = document.querySelector(`#border-${side}-width`).value; // Get border width from slider.
+        const color = document.querySelector(`#${side}-transparent`).checked // Determine color - transparent if checkbox checked, otherwise use color picker. Ternary operator in action.
+            ? "transparent" 
+            : document.querySelector(`#border-${side}-color`).value; 
+        document.querySelector(`#${side}-width`).textContent = `boder-${side}-width: ${width}px`; // Update width label.
+        let val =  `border-${side}:${width}px solid ${color};` // Border CSS property.
+        document.querySelector(`#css-line${2+i}`).textContent = val; // Update the CSS preview line for this border.
+        styleValue += `border-${side}:${width}px solid ${color};`; // Add to CSS string to finish its contruction.
+    });
+    divElem.style = styleValue; // set divElem attribute style value - apply all CSS to div.
+}
+//*************************** start here ****************************
+updateDiv(); // initialize with default values when page loads.
+//*******************************************************************
+        </script>
+    </body>
+</html>
