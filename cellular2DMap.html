@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Cellular Automata. Generate 2D Map in JavaScript</title>
+        <style> /* Internal CSS styling. */
+            *{ /* Universal selector. Selects all elements. */
+                margin: 0; /* Removes default margins. */
+                padding: 0; /* Removes default padding. */
+                box-sizing: border-box; /* Include padding and border in element's total width and height. */
+                font: 22px Arial; /* Set font size and family. */
+            }
+            #wrapper{ /* ID selector. */
+                width: 100vw; /* 100% of the viewport's width. */
+                height: 100vh; /* 100% of the viewport's height. */
+                display: flex; /* Flexible layout box model. */
+                flex-direction: column; /* Stack children vertically. */
+            }
+            header{ /* Type selector. */
+                width: 100%; /* Full width of the parent. */
+                height: 70px; /* Fixed height. */
+                background-color: teal; /* your choise. */
+                display: flex; /* Flexible layout box model. */
+                justify-content: space-evenly; /* items have equal space around them along main axix. */
+                align-items: center; /* center on cross axis. */
+            }
+            figure{ /* Type selector. */
+                width: 100%; /* Full widht of the parent. */
+                height: 100%; /* All remaining free height (100vh-70px). */
+                background-color: turquoise;
+                position: relative; /* to position child - canvas absolutely. */
+                display: grid; /* to enable place-item CSS property. */
+                place-items: center /* center childen whithin grid. */
+            }
+            canvas{ /* Type selector. */
+                position: absolute;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="wrapper"> <!-- Top level container. Wrapps everything. -->
+            <header> <!-- Semantic HTML element. Contain controls. -->
+                <div style="min-width:80px;">Cell: <span class="cell-size"></span>px<br>
+                <input type="number" class="cell-size" min="1" max="30" value="10" autocomplete="off">
+                </div>
+                <div>Grid<br>
+                    <input type="checkbox" class="show-grid" checked autocomplete="off" style="width:22px;height:22px;">
+                </div>
+                <div>Density:<span class="density"></span>%<br>
+                    <input type="range" class="density" min="0" max="100" value="60" autocomplete="off">
+                </div>
+                <button id="previous-cycle" style="min-width:120px;">Previous</button>
+                <div>Cycle:
+                    <span class="cycle-number" style="min-width:80px;"></span>
+                </div>
+                <button id="next-cycle" style="min-width:120px;">Next</button> 
+            </header>
+            <figure> <!-- Container for canvas. Styled to center canvas within itself. -->
+                <canvas></canvas> <!-- Since there is only 1 canvas, no id or class attribute. Type selector used in CSS. -->
+            </figure>
+        </div> 
+    <script>
+//*************************** global variables **********************
+const wrapperElem = document.querySelector("#wrapper"); // References to DOM elements, for convenience.
+const headerElem = document.querySelector("header");
+const figureElem = document.querySelector("figure");
+const cycleNumElem = document.querySelector("span.cycle-number");
+const canvasElem = document.querySelector("canvas");
+const ctx = canvasElem.getContext("2d"); // 2d rendering contex.
+let cells; // initializeCavasCells() will initialize this variable with 3D array: [row][column][cycle] for stroring cell state(0 or 1).
+let cellSize; /// Size of each cell in pixels.
+let rowQt, colQt; // Number of rows and columns 
+let currentCycle = 0; // Current generation/cycle of the automata. 
+
+
+//*************************** events ********************************
+headerElem.addEventListener("input",inputHandler); // hande all input events in the header (cell size, density, grid toggle).
+document.querySelector("#previous-cycle").addEventListener("click",()=>{ // go back one cycle.
+    currentCycle = currentCycle === 0 ? 0 : currentCycle-1; // ternary operator. Decrease currentCycle by 1. Don't go below 0. 
+    cycleNumElem.textContent = currentCycle; // display the cycle number. 
+    drawCells(); // redraw the cells(grid).
+});
+document.querySelector("#next-cycle").addEventListener("click",()=>{ // compute next generation/cycle.
+    nextCycle(); // compute next cycle.
+    currentCycle++; // increment cycle counter.
+    cycleNumElem.textContent = currentCycle; // display the cycle number.
+    drawCells(); // redraw with previous cycle's data.
+});
+canvasElem.addEventListener("click",toggleCell); // toggle individual cells.
+
+
+//*************************** logic *********************************
+function inputHandler(e){ // handes input changes from controls.
+    if(e.target.className === "show-grid"){ // if it's just the show grid toggle, only redraw.
+        drawCells();
+        return;
+    }
+    currentCycle = 0; // For other inputs, reset the automata.
+    initializeCanvasCells();
+    drawCells();
+}
+function nextCycle(){ // compute the next cycle of cells based on current cycle state.
+    scanCells((r,c)=>{ // pass this arrow function as argument to decorator function.
+        const cell = cells[r][c][currentCycle]; // reference to current cell.
+        const neighborsQt =
+            [-1,0,1].reduce((total,y)=>
+                total+
+                [-1,0,1].reduce((sum,x)=>
+                    sum+
+                    (x || y // Skip self (when x=0 and y=0). Ternary operator.
+                    ? (cells[r+y]?.[c+x]?.[currentCycle] === undefined 
+                        ? 1 // Count edges as a valid neighbor (1). Optional chaining operator ?. here is only to prevent error from being thrown when trying to access array element out of bounds.
+                        : cells[r+y][c+x][currentCycle]) // otherwise just count ordinary neighbor.
+                    : 0)
+                ,0) // initial accumulator for reduce((sum,x)=>...
+            ,0) // initial accumulator for reduce ((total,y)=>...
+        cells[r][c][currentCycle+1] = neighborsQt > 4 ? 1 : 0; // Ternary operator apply rule: if cell have more then 4 neibors - it will ne alive (1, black), otherwise - dead (0, white). 
+    });
+}
+function drawCells(){ // Render cells on canvas.
+    ctx.clearRect(0,0,canvasElem.width,canvasElem.height); // Clear canvas.
+    scanCells((r,c)=>{ // Pass arrow function as argument to decorator function.
+        ctx.fillStyle = cells[r][c][currentCycle] ? "black" : "white"; // Ternary operator set color based on cell state.
+        ctx.fillRect(c*cellSize,r*cellSize,cellSize,cellSize); // draw black or white rectangle.
+    });
+    const isGrid = document.querySelector("input.show-grid").checked; // boolean flag, draw grid lines or not.
+    if(cellSize > 4 && isGrid){ // condition to draw grid lines.
+        ctx.strokeStyle = "#888";
+        ctx.lineWidth = 1;
+        for(let x = cellSize; x < canvasElem.width; x += cellSize){
+            ctx.beginPath();
+            ctx.moveTo(x,0);
+            ctx.lineTo(x,canvasElem.height);
+            ctx.stroke();
+        }
+        for(let y = cellSize; y < canvasElem.height; y += cellSize){
+            ctx.beginPath();
+            ctx.moveTo(0,y);
+            ctx.lineTo(canvasElem.width,y);
+            ctx.stroke();
+        } 
+    }
+}
+function initializeCanvasCells(){ // Name explains function's purpose.
+    cellSize = Number(document.querySelector("input.cell-size").value); // get cell size.
+    document.querySelector("span.cell-size").textContent = cellSize; // display it.
+    density = Number(document.querySelector("input.density").value); // get density.
+    document.querySelector("span.density").textContent = density; // display it.
+    rowQt = figureElem.offsetHeight/cellSize | 0; // calculate how many rows will fit within canvas. Taking into account the canvas with maximum width can be equal to its parent - figure element. | 0 is fast floor.
+    colQt = figureElem.offsetWidth/cellSize | 0; // the same logic for columns.
+    [canvasElem.width,canvasElem.height] = [colQt*cellSize,rowQt*cellSize]; // destructuring syntax. Set canvas dimensions.
+    cells = Array.from({length: rowQt}, ()=> // Initialize 3D array: [row][column][cycle].
+                Array.from({length: colQt}).map(()=>[])
+    );
+    scanCells((r,c)=>{ // argument for decorator.
+        cells[r][c].push(Math.random()*100 >= density // Ternary operator randomly populate first (cycle 0) generation of cells based on density.
+            ? 0
+            : 1
+        )
+    });
+    currentCycle = 0;
+    cycleNumElem.textContent = currentCycle;
+}
+function toggleCell(e){ // Toggle cell (0 to 1, 1 to 0).
+    const rect = canvasElem.getBoundingClientRect(); // DOMRect object.
+    const [mX, mY] = [e.clientX-rect.left, e.clientY-rect.top]; // Destructuring syntax. Local mouse canvas coordinas.
+    const [r,c] = [Math.floor(mY/cellSize), Math.floor(mX/cellSize)]; // Destructurin syntax. Calculate row and colum for cell under the mouse cursor.
+    cells[r][c][currentCycle] = cells[r][c][currentCycle] ? 0 : 1; // Ternary operator toggle cell state.
+    drawCells(); // redraw cells(grid).
+}
+function scanCells(callbackFn){ // Function decorator. To make code concise, and to demonstrate this technique.
+    for(let r = 0; r < rowQt; r++) // 'for loop' for rows.
+        for(let c = 0; c < colQt; c++) // nested 'for loop' for colulms. 
+            callbackFn(r,c); // callback function passed as argument to function decorator.
+}
+
+
+//*************************** initialization ************************
+onload = ()=>{ // even if fired when page loads.
+    initializeCanvasCells();
+    drawCells();
+}
+//*******************************************************************
+    </script>  
+    </body>
+</html>
