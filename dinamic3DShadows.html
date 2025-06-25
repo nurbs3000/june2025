@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Dynamic 3D shadows effect</title>
+        <style> /* Internal CSS styling. */
+            *{ /* Universal selector. Selects all elements. */
+                margin: 0; /* Removes default margins. */
+                padding: 0; /* Removes default padding. */
+                box-sizing: border-box; /* Include padding and boreder in element's total width and height. */
+            }
+            #container{ /* ID selector. */
+                width: 100vw; /* 100% of the viewport's width. */
+                height: 100vh; /* 100% of the viewport's height. */
+                background-color: darkGray; /* self evident. */
+                position: relative; /* required to position children absolutely. */
+                cursor: none; /* hide mouse cursor. */
+                overflow: hidden; /* clip overflow, no scroll bars. */
+            }
+            #light{ /* ID selector. */
+                width: 20px; /* Fixed width. */
+                height: 20px; /* Fixed height. */
+                border-radius: 50%; /* Make it circular. */
+                background-color: yellow; /* Light color. */
+                box-shadow: 0px 0px 20px yellow; /* Glow effect. */
+                z-index: 2; /* Light above boxes. */
+                transform: translate(-50%,-50%); /* Center light on its position. */
+                position: relative; /* Required for positioning. */
+            }
+            .box{ /* Class selector. Selects all box elements created by JS. */
+                position: absolute; /* Required for positioning. */
+            }
+        </style>
+    </head>
+    <body>
+        <div id="container"> <!-- Main container. Boxes created by JS will be its children. -->
+            <div id="light"></div> <!-- Light source. -->
+        </div>
+        <script> // Embedded JavaScript.
+//*************************** global variables **********************
+const contElem = document.querySelector("#container"); // Reference to the container element. 
+const lightElem = document.querySelector("#light"); // Reference to light element.
+const boxes = []; // JS will store objects with some properties(x,y,hue,size) required to create box elements.
+//*************************** events ********************************
+contElem.addEventListener('mousemove',updateShadows); // when mouse is moving within a container - update shadows.
+//*************************** logic *********************************
+function generateBoxes(){ // Generate random boxes and put them in the container. 
+    const minSize = 30, maxSize = 70; // Range for random box size.
+    const [W,H] = [contElem.offsetWidth,contElem.offsetHeight]; // Destructuring assignment. Container dimensions.
+    let retries = 10000; // Limit number of retries to place the box in the contaner. Avoid infinite looping.
+    boxes.push(randomBox()); // Push first random box in the container. No need to check collisions.
+    while(retries--){ // add boxes untill there is no room (retries runs out).
+        const box = randomBox(); // box with random size(minSize-maxSize range) on random position.
+        if(boxes.some(v=>Math.hypot(box.x-v.x, box.y-v.y) < (box.size+v.size)*.7)) continue; // skip if too close to any already placed box.
+        boxes.push(box); // if we get here, means box is ok. 
+    }
+    console.log("Number of boxes: "+boxes.length); // Log number of created boxes. 
+    boxes.forEach((b,idx)=>{ // Loops through array, creating respective HTML elements.
+        const elem = document.createElement("div"); // Create div HTML element.
+        elem.className = "box"; // set class name.
+        elem.id = `idx${idx}`; // Unique ID. 
+        elem.style.backgroundColor = `hsl(${b.hue},70%,10%)`; // Initial color.
+        elem.style.left = b.x+"px"; // x position.
+        elem.style.top = b.y+"px"; // y position.
+        elem.style.width = b.size+"px"; // Width.
+        elem.style.height = b.size+"px"; // Height.
+        elem.style.transform = `translate(-50%,-50%) rotate(${45*Math.random() | 0}deg)`; // Center and than rotato with random angle. | 0 is fast floor.
+        contElem.appendChild(elem); // add box to container.
+    });
+    function randomBox(){ // Helper function to generate object(box), with some constrains.
+        const size = Math.random()*(maxSize-minSize)+minSize | 0; // Random size in range. | 0 is fast floor(Math.floor equivalent for positive integers.)
+        return{ 
+            size: size,
+            x: Math.random()*(W-2*size)+size | 0, // Random x positon, while keeping full box in container.
+            y: Math.random()*(H-2*size)+size | 0, // the samve for y.
+            hue: Math.random()*360 | 0, // Random hue (0-359).
+        }
+    }
+}
+function updateShadows(e){ // Updates shadows and colors based on light(cursor) position. Accept 'mousemove' event object to extract mouse coordintes.
+    const [x,y] = [e.clientX, e.clientY]; // Destructuring syntax. Current mouse coordinates.
+    Object.assign(lightElem.style, {left:x+"px", top:y+"px"}); // lightElem.style attribute is Object! It is compact way to set inline CSS style - update light position.
+    const maxDist = Math.hypot(contElem.offsetWidth-30,contElem.offsetHeight-30); // Maximum possible distance between mouse and box (container diagonal).
+    boxes.forEach((b,idx)=>{ // loops through each array element.
+        const boxElem = document.querySelector(`#idx${idx}`); // Reference to current box HTML element. Remembe ,during creation phase, how ID was contstructed. 
+        let {left,top,width:size} = boxElem.style; // Destructuring assignment. Get current box position and size. width:size making 'size' alias for width.
+        [left,top,size] = [left,top,size].map(v=>parseInt(v)); // Convert from strings to numbers(removes 'px' suffix).
+        const horOffset = (left-x)/40 | 0; // Horizonta offset(| 0 is fast floor). (left-x) determine shadow direction depending on box and mouse cursor position.
+        const verOffset = (top-y)/40 | 0; // the same logic for vertical shadow offset.
+        const dist = Math.hypot(left-x,top-y); // distance from light to box.
+        const blur = 7*dist/maxDist | 0; // Calculate blur based on distance, the farther - the more blur.
+        Object.assign(boxElem.style, { // Set style attribute. 
+            boxShadow:`${horOffset}px ${verOffset}px ${blur}px #222`,backgroundColor:`hsl(${boxes[idx].hue},${80*(1-dist/maxDist)}%,${30*(1-dist/maxDist)}%)`, // Dynamic HSL color that changes based on distance from light. Hue stays the same. Saturation and lightness increases as gets closer to light (more vivid). 
+        }); 
+    });
+}
+//*************************** initialization ************************
+onload = ()=>{ // event is fired when pate loads.
+    generateBoxes(); // starts the show.
+}
+//*******************************************************************
+        </script>
+    </body>
+</html>
