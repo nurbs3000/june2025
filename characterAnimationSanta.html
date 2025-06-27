@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Character Animation</title>
+        <style> /* Internal CSS styling. */
+            *{ /* Universal selector. */
+                margin: 0; /* Remove default margin. */
+                padding: 0; /* Remove defalut padding. */
+                box-sizing: border-box; /* Include padding and borders in element's total width and height. */
+            }
+            #container{ /* ID selecor. */
+                width: 100vw; /* 100% of the viewport's width. */
+                height: 100vh; /* 100% of the viewport's height. */
+                background-color: beige; /* or whatever color you like. */
+                position: relative; /* for absolute positioning of children. */
+                overflow: hidden; /* clip anything that goes outside container, no scrollbars. */
+            }
+            canvas{ /* Type selector (since there is only one canvas present). */
+                position: absolute; /* positioned relative to container. */
+            }
+            img.spritesheet{ /* Compound selector (selects spritesheet image). */
+                display: none; /* hide it. */
+            }
+        </style>
+    </head>
+    <body>
+        <div id="container"> <!-- Main container. Holds canvas and hidden spritesheet. -->
+            <canvas></canvas> <!-- to render animation on it. -->
+            <img src="santa_spritesheet.png" class="spritesheet"> <!-- Spritesheet image (hidden, JS clip it to get required animation frames). -->
+        </div>
+        <script>
+//*************************** global variables **********************
+const containerElem = document.querySelector("#container"); // Reference to container.
+const canvasElem = document.querySelector("canvas"); // Reference to canvas.
+const ctx = canvasElem.getContext("2d"); // Canvas 2d drawing context.
+let mySanta; // Santa character.
+const keys = new Set(); // Set to track currently pressed keys.
+let lastTime; // Required in animate() functoin to calculate frame timing.
+//*************************** events ********************************
+document.addEventListener("keydown",handleKeys); // handleKeys() add/remove keys from the 'keys' Set.
+document.addEventListener("keyup",handleKeys);
+//*************************** logic *********************************
+class Santa{ // class to construct Santa object.
+    constructor(){ // Constructor method. 
+        this.W = canvasElem.width; // Canvas width.
+        this.H = canvasElem.height; // Canvas height.
+        this.sW = 311; // Sprite width in pixels (this is defined by sprite sheet image).
+        this.sH = 214; // Sprite height in pixels.
+        this.spritesImg = document.querySelector("img"); // Reference to th spritesheet image element.
+        this.state = "idle"; // Current inimation state.
+        this.idleElapsedTime = 0; // Time spent in idle state.
+        this.lookingRight = false; // Facing directions. (right - true, left - false).
+        this.currFrame = 0; // Current animation frame.
+        this.currFrameElapsedTime = 0; // Time spent on current frame.
+        this.frameDuration = 60; // Milliseconds to spent on frame.(after that time, currFrame counter increased by 1 - next frame will be current frame.
+        this.framesQt = { // Number of frames for each animation state.
+            dead: 17, // Death frames (check spritesheet, they are first).
+            idle: 16, // Idle frames.
+            jump: 16, // Jump frames.
+            run: 11, // Run frames.
+            slide: 11, // Slide frames.
+            walk: 11, // Walk frames.
+        };
+        this.x = this.W/2; // Horizontal position, and its initial value.
+        this.y = this.H*.6; // Vertical position.
+        this.walkVel = this.sH/1400; // Walkng velocity in pixels per millisecond units.
+        this.runVel = this.sH/700; // Running velocity, px/ms.
+        this.jumpInitialVel = -this.sH/200; // Initial jump velocity, px/ms (negative, because Y axis points down).
+        this.vertVel = 0; // Current vertical velocity (for jump physics simulaton).
+        this.horVel = 0; // Current horizontal velocity (for slide friction simulation).
+    }
+    updateState(t) { // Manage transition between states.
+        const transition = { // State Transition Table aka 'transition  matrix' (official name for such data structures). Maps each state to its possible transitions.
+            idle: { // From idle state.
+                ArrowLeft: ()=>({ state: "walk", lookingRight: false }),
+                ArrowRight: ()=>({ state: "walk", lookingRight: true }),
+            },
+            walk: { // From walk state.
+                ArrowLeft: (s)=>s.lookingRight && { lookingRight: false },
+                ArrowRight: (s)=>!s.lookingRight && { lookingRight: true },
+                Shift: ()=>({ state: "run" }),
+                _noKeys: ()=>({ state: "idle" }),
+            },
+            run: { // From walk state.
+                _noShift: ()=>({ state: "walk" }),
+                _noKeys: ()=>({ state: "idle" }),
+                ArrowUp: ()=>({ state: "jump" }),
+                ArrowDown: ()=>({ state: "slide" }),
+            },
+            jump: {}, // Handled in updatePosition(). User can to nothing duing jump.
+            slide: {}, // Handled in updatePosition().
+            dead: {}, // No transition out of dead state.
+        };
+        const oldState = this.state; // store current state, to check later if state was changed.
+        const stateTransitions = transition[this.state]; // possible transitions from current state.
+        for (const [key, fn] of Object.entries(stateTransitions)) { // Conver transitions object to enries iterator and loops through each key/value pair.
+            if (!key.startsWith('_') && keys.has(key)) { // Check for key-based transitions.
+                Object.assign(this,fn(this)); // Apply the transition (this is mySanta object).
+            }
+        }
+        // Check for special '_noKeys' transition - no direction keys are pressed. ...&&...&&...&&...&& is called 'Shor-Circuit Evaluation'. It is more compact form of 'if' here.
+        !keys.has("ArrowLeft") && !keys.has("ArrowRight") && stateTransitions._noKeys && Object.assign(this, stateTransitions._noKeys());
+        // Check for '_noShift' transition, when shift key is released.
+        !keys.has("Shift") && stateTransitions._noShift && Object.assign(this, stateTransitions._noShift());
+        oldState === "idle" && (this.idleElapsedTime += t); // Track time spent in idle state(for death transition).
+        oldState !== this.state && (this.currFrame = 0, this.currFrameElapsedTime = 0, this.idleElapsedTime = 0); // Reset animation frame when state changes.
+        if(this.idleElapsedTime > 60000 && this.state !== "dead"){ // After 1min in idle state, transition to dead state.
+            this.state = "dead";
+            this.currFrame = 0;
+            this.currFrameElapsedTime = 0;
+        }
+    }
+    updateAnimationFrame(t){ // Update the current animation frame based on elapsed time(time spent showing this frame).
+        if(this.state === "dead" && this.currFrame === this.framesQt[this.state]-1) return; // Don't animate anything after last death animation.
+        this.currFrameElapsedTime += t; // add frameTime to current frame elepsed time(accumulated time this frame is displayd on canvas).
+        if(this.currFrameElapsedTime >= this.frameDuration){ // Advance to next frame if frame duration exceeded.
+            this.currFrame++;
+            this.currFrame %= this.framesQt[this.state]; // Loop frames(after last frame goes first frame);
+            this.currFrameElapsedTime = 0; // Reset frame elapled time, since we started new - next frame.
+        }
+    }
+    updatePosition(t){ // Update character position based on current state and velocity.
+        switch(this.state){ // Switch based on current state.
+            case "walk":
+                this.x += this.lookingRight ? this.walkVel*t : -this.walkVel*t; // Move right/left based on facing direction. Ternary operator.
+                break;
+            case "run":
+                this.x += this.lookingRight ? this.runVel*t : -this.runVel*t; // Faster right/left movement.
+                break;
+            case "jump": 
+                if(!this.vertVel) this.vertVel = this.jumpInitialVel; // !this.vertVel means this.vertVel === 0 - jump is not in the process. Initialize it.
+                this.vertVel += .003*t; // Gravity acceleration.
+                this.y += this.vertVel*t; // Vertical movement.
+                this.x += this.lookingRight ? this.runVel*t : -this.runVel*t; // Continue horizontal movement while jumping.
+                if(this.y >= this.H*.6){ // Check for landing.
+                    this.vertVel = 0; // Reset vertical speed.
+                    this.y = this.H*.6; // Reset to ground level.
+                    this.state = "idle"; // Return to 'idle'.
+                    this.currFrame = 0; // Reset current frame.
+                    this.currFrameElapsedTime = 0; // Reset frame elapsed time.
+                }
+                break;
+            case "slide":
+                if(!this.horVel) this.horVel = this.runVel; // The same logic as for 'jump', only initialize horizontal velocity.
+                this.horVel -= .0002*t; // Apply friction.
+                this.x += this.lookingRight ? this.horVel*t : -this.horVel*t; // Sliding, slowing down.
+                if(this.horVel <= 0){ // Check if friction stoped sliding.
+                    this.horVel = 0;
+                    this.state = "idle";
+                    this.currFrame = 0;
+                    this.currFrameElapsedTime = 0;
+                } 
+                break;    
+        }
+        this.x %= this.W; // Handle screen wrapping(right edge)
+        this.x = this.x < 0 ? this.W : this.x; // Handle screen wrapping(left edge).
+    }
+    render(){ // Draw the character.
+        if(this.lookingRight){ // Draw when facing right (normal orientation).
+            ctx.drawImage(this.spritesImg,...this.frame_sXsYsWsH(this.currFrame),this.x-this.sW/2,this.y-this.sH,this.sW,this.sH);
+        }
+        else{ // Draw when facing left (flipped horizontally).
+            ctx.save(); // Save current canvas state.
+            ctx.translate(this.x+this.sW/2-47, this.y-this.sH); // Move origin to right side of character. -47 is the correction, because caracter in spritesheet is not perfectly centered within frames.
+            ctx.scale(-1,1); // Flip horizontally.
+            ctx.drawImage(this.spritesImg,...this.frame_sXsYsWsH(this.currFrame),0,0,this.sW,this.sH); // draw the sprite(clipped part of spritesheet).
+            ctx.restore(); // Restore the original canvas state.
+        }
+    }
+    frame_sXsYsWsH(frameNum){ // Calculate the source rectangle for the current animation frame.
+        const [sW,sH] = [311,214]; // Sprite dimensions.
+        const startFrame = { // Starting frame indices for each animation state.
+            dead: 0,
+            idle: 17,
+            jump: 33,
+            run: 49,
+            slide: 60,
+            walk: 71,
+        };
+        const spritesFrameNum = frameNum+startFrame[this.state]; // sprite number in spriteseet, couting left-to-righ top-to-bottom.
+        const col = spritesFrameNum%8; // Column in spritesheet (8 columns).
+        const row = Math.floor(spritesFrameNum/8); // Row in spritesheet.
+        return [sW*col,sH*row,sW,sH]; // Returns array. This array will be spread in ctx.drawImage to get 4 arguments pointing to the rectangle to be cliped from spritesheet.
+    }
+}
+function handleKeys(e){ // Tracked pressed keys. e - keyboard event object.
+    e.type === "keydown" // Ternary operator. If event is 'keydown', add pressed key to 'keys' Set. Prevent e.key from being added if the opposite direction key is already pressed. Such command have no sense. 
+        ? (keys.add(e.key),
+        [["ArrowUp","ArrowDown"],["ArrowLeft","ArrowRight"]].forEach(([a,b])=>keys.has(a) && keys.has(b) && keys.delete(e.key)))
+        : keys.delete(e.key); // Remove released key from Set.
+}
+function animate(timestamp){ // Animation loop.
+    if(!lastTime) lastTime = timestamp; // Initialize on first frame.
+    const frameTime = timestamp - lastTime; // Time since last frame.
+    lastTime = timestamp; // Update lastTime.
+    ctx.clearRect(0,0,canvasElem.width,canvasElem.height); // Clear canvas.
+    mySanta.updateState(frameTime); // update Santa state.
+    mySanta.updateAnimationFrame(frameTime); // update Santa frame.
+    mySanta.updatePosition(frameTime); // update Santa position.
+    mySanta.render(); // Render Santa.
+    requestAnimationFrame(animate); // request next animation frame.
+}
+//*************************** initialization ************************
+onload = ()=>{ // Event is fired when page is loaded.
+    [canvasElem.width,canvasElem.height] = [containerElem.offsetWidth,containerElem.offsetHeight]; // Set canvas size.
+    mySanta = new Santa(); // Create Santa instance.
+    requestAnimationFrame(animate); // Start the animation loop.
+};
+//*******************************************************************
+        </script>
+    </body>
+</html>
