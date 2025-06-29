@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Rotame element with mouse</title>
+        <style> /* Internal CSS styling. */
+            *{ /* Universal selector. */
+                padding: 0; /* Remove default margin. */
+                margin: 0; /* Remove default padding. */
+                box-sizing: border-box; /* Include padding and border in element's total width and height. */
+            }
+            #wrapper{ /* ID selector. */
+                width: 100vw; /* 100% of the viewport's width. */
+                height: 100vh; /* 100% of the viewport's height. */
+                background-color: #777; /* color choice is yours. */
+                position: relative; /* for absolute positioning of children. */
+                overflow: hidden; /* clip anything that goes outside wrapper, no scrollbars. */
+            }
+            #box{ /* ID selector. */
+                width: 300px; /* Fixed width. */
+                height: 300px; /* Fixed height. */
+                left: calc(100vw / 2 - 150px); /* Center horizontally. */
+                top: calc(100vh / 2 - 150px); /* Center vertically. */
+                position: absolute; /* positioned relative to container. */
+                background-color: blue;
+                font-size: 40px; /* Emoji font size. */
+                cursor: move; /* sursor style when hovering. */
+            }
+            #origin{ /* ID selector. */
+                width: 20px; /* Fixed width. */
+                height: 20px; /* Fixed height. */
+                transform: translate(-50%,-50%); /* Center the origin point. */
+                border-radius: 50%; /* Give it circular shape. */
+                position: absolute; /* Position relative to wrapper. */
+                background-color: orangeRed;
+                cursor: grab; /* cursor style when hovering. */
+            }
+            #info{ /* ID selector. */
+                position: absolute; /* Position relative to wrapper. */
+                color: navy;
+                font: 27px Arial; /* to be readable. */
+                margin: 10px 20px; /* some spacing. */
+            }
+        </style>
+    </head>
+    <body>
+        <div id="wrapper"> <!-- Top-level container. Wrapps everything. -->
+            <div id="box">🛠</div> <!-- The rotatable box. Emoji for visual reference. -->
+            <div id="origin"></div> <!-- The trasform-origin point. -->
+            <div id="info"> <!-- To display CSS style applyed to box. -->
+                transform-origin: <span id="tr-origin">50% 50%</span>;
+                <br>
+                transform: rotate&lpar;<span id="angle">0</span>deg&rpar;;
+            </div>
+        </div>
+        <script>
+//*************************** global variables **********************
+const wrapperElem = document.querySelector("#wrapper"); // And next 2 lines are references to elements for convenience.
+const boxElem = document.querySelector("#box");
+const originElem = document.querySelector("#origin");
+let initialMouseX, initialMouseY; // Stores mouse coordinates at the moment rotation or drag and drop is started ("mousedown" event).
+let _cloneNode = null; // Stores a clone of the clicke element ('box' or 'origin'. Also serve as a flag, to indicate if rotation or drag and drop is currently active.
+//*************************** events ********************************
+document.addEventListener("mousedown",handleRotation); // All mouse events use the same function. This event initialize box rotation or transform-origin point drag and drop. Depending which element fired the event ('box' or 'origin' respectively).
+document.addEventListener("mouseup",handleRotation); // Ends rotation or drag and drom operation.
+document.addEventListener("mousemove",handleRotation); // dynamically updates rotation or transform-origin CSS property.
+//*************************** logic *********************************
+function handleRotation(e){ // Handles all 3 mouse events.
+    switch(e.type){ // Depending on type of mouse event perform requied logic.
+        case "mousedown": // This event means the start of rotation or drag and drop.
+            if(!e.target.matches("#box, #origin")) return; // Only proceed if clicking on the 'box' or 'origin'.
+            [initialMouseX,initialMouseY] = [e.clientX,e.clientY]; // Destructuring syntax. Stores initial mouse position.
+            _cloneNode = e.target.cloneNode(); // Clone the clicked element ('box' or 'origin').
+            break;
+        case "mouseup": // LMB released, means we must end operation. 
+            _cloneNode = null; // When _cloneNode value is null, means that no operatoin is underway (rotation or drag and drop).
+            break;
+        case "mousemove": // Do heavy lifting. Contains all logic required to rotate or change transform-origin.
+            if(_cloneNode === null) break; // Only proceed if we have clone of element to modify.
+            if(_cloneNode.id === "origin"){ // drag and drop of 'origin' point - setting transform-origin CSS property.
+                boxElem.style.transform = "rotate(0deg)"; // Reset rotation.
+                document.querySelector("#angle").textContent = 0; // Display 0 as current rotation angle.
+                const dx = e.clientX-initialMouseX; // how much mouse has moved horizontally since the start ("mousedown" event).
+                const dy = e.clientY-initialMouseY; // ... vertically ...
+                const initialOriginX = parseInt(_cloneNode.style.left); // initial 'origin' horizontal and vertical position.
+                const initialOriginY = parseInt(_cloneNode.style.top);
+                originElem.style.left = initialOriginX+dx+"px"; // Update 'origin' position horizontally.
+                originElem.style.top = initialOriginY+dy+"px"; // vertically.
+                const originXPercent = (initialOriginX+dx-boxElem.offsetLeft)/boxElem.offsetWidth*100 | 0; // Calculate new tranform-origin in percentages relative to 'box'. | 0 is fast floor, equivalent to Math.floor() for positive numbers.
+                const originYPercent = (initialOriginY+dy-boxElem.offsetTop)/boxElem.offsetHeight*100 | 0; 
+                boxElem.style.transformOrigin = `${originXPercent}% ${originYPercent}%`; // Apply new tranform-origin.
+                document.querySelector("#tr-origin").textContent = `${originXPercent}% ${originYPercent}%`; // Display it.
+            }else{ // _cloneNode.id can be either 'origin' or 'box'. Here is the 'box' case - rotation logic.
+                const initialRotate = (_cloneNode.style.transform.match(/-?\d+(\.\d+)?/)[0])/180*Math.PI; // Extract from clone initial rotation angle and convert it from degrees to radians.
+                const originX = parseInt(originElem.style.left); // Get current origin x and y coordinates.
+                const originY = parseInt(originElem.style.top);
+                const initialOriginMouseAngle = Math.atan2( // atan2() returns an angle(radians) between x-axis and vector from origin point to initial mouse position.  
+                    initialMouseY-originY,
+                    initialMouseX-originX
+                );
+                const currentOriginMouseAngle = Math.atan2( // the same, but for the current mouse position.
+                    e.clientY-originY,
+                    e.clientX-originX
+                );
+                const angleDiff = currentOriginMouseAngle-initialOriginMouseAngle; // How much mouse "rotated" relative to the 'origin' point.
+                let newRotate = (initialRotate+angleDiff)/Math.PI*180; // To get new rotate value, we add initial rotate value and "how moush mouse 'rotated' around 'origin'". Conver from radians to degrees.
+                newRotate = ((newRotate % 360) + 540) % 360 - 180; // Normalization to -180deg 180deg range.
+                boxElem.style.transform = `rotate(${newRotate}deg)`; // Applly rotation.
+                document.querySelector("#angle").textContent = newRotate | 0; // | 0 is fast floor (to trancate decimals).
+            }
+    }
+}
+//*************************** initialization ************************
+onload = ()=>{ // when page loads, set required initial values.
+    boxElem.style.transformOrigin = "50% 50%";
+    boxElem.style.transform = "rotate(0deg)";
+    originElem.style = `left:${wrapperElem.offsetWidth/2}px;top:${wrapperElem.offsetHeight/2}px;`;
+}
+//*******************************************************************
+        </script>
+    </body>
+</html>
